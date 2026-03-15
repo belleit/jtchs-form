@@ -235,7 +235,7 @@ export function Survey({
       acc[question.id] = question.required;
       return acc;
     }, {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only recompute when blocks structure changes
+    //  react-hooks/exhaustive-deps -- Only recompute when blocks structure changes
   }, [survey.blocks]);
 
   const questionRequiredByMap = useRef<Record<string, string[]>>({});
