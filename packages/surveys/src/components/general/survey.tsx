@@ -726,7 +726,6 @@ export function Survey({
       setErrorType(TResponseErrorCodesEnum.InvalidDeviceError);
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- this is a one-time effect
   }, []);
 
   useEffect(() => {
