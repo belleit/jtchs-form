@@ -14,14 +14,16 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Install deps
-        run: npm install -g pnpm && pnpm install
+        run: pnpm install
 
-      - name: Build survey-ui dependency first
-        run: pnpm --filter @formbricks/survey-ui build
-
-      - name: Build surveys package
-        run: pnpm --filter @formbricks/surveys build
+      - name: Build surveys package and all dependencies
+        run: pnpm --filter @formbricks/surveys... build
+        # The "..." tells Turbo to build @formbricks/surveys
+        # AND everything it depends on, in the correct order
 
       - name: Copy survey page
         run: cp public/index.html packages/surveys/dist/index.html
