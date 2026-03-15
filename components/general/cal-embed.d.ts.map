@@ -1,0 +1,1 @@
+{"version":3,"file":"cal-embed.d.ts","sourceRoot":"","sources":["../../../src/components/general/cal-embed.tsx"],"names":[],"mappings":"AAEA,OAAO,EAAE,KAAK,iBAAiB,EAAE,MAAM,oCAAoC,CAAC;AAG5E,UAAU,aAAa;IACrB,OAAO,EAAE,iBAAiB,CAAC;IAC3B,mBAAmB,EAAE,MAAM,IAAI,CAAC;CACjC;AAED,wBAAgB,QAAQ,CAAC,EAAE,OAAO,EAAE,mBAAmB,EAAE,EAAE,aAAa,gCAkDvE"}

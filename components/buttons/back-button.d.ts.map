@@ -1,0 +1,1 @@
+{"version":3,"file":"back-button.d.ts","sourceRoot":"","sources":["../../../src/components/buttons/back-button.tsx"],"names":[],"mappings":"AAGA,UAAU,eAAe;IACvB,OAAO,EAAE,MAAM,IAAI,CAAC;IACpB,eAAe,CAAC,EAAE,MAAM,CAAC;IACzB,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB;AAED,wBAAgB,UAAU,CAAC,EAAE,OAAO,EAAE,eAAe,EAAE,QAAY,EAAE,EAAE,eAAe,gCAcrF"}
