@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survey</title>
+</head>
+<body>
+  <script>
+    !function(){
+      var t = document.createElement("script");
+      t.src = "./index.umd.js";
+      t.async = true;
+      document.head.appendChild(t);
+    }();
+  </script>
+  <script>
+    window.addEventListener("formbricksReady", function() {
+      formbricks.init({
+        environmentId: "cmms3molo09piu701aeg36oqf",
+        apiHost: "https://app.formbricks.com"
+      });
+    });
+  </script>
+</body>
+</html>

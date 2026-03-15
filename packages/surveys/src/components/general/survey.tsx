@@ -31,10 +31,98 @@ import { SurveyState } from "@/lib/survey-state";
 import { cn, findBlockByElementId, getDefaultLanguageCode, getElementsFromSurveyBlocks } from "@/lib/utils";
 import { TResponseErrorCodesEnum } from "@/types/response-error-codes";
 
+// ─── TTS Hook ────────────────────────────────────────────────────────────────
+
+function useTTS(text: string, muted: boolean) {
+  const synthRef = useRef(
+    typeof window !== "undefined" ? window.speechSynthesis : null
+  );
+
+  const speak = (utterance: string) => {
+    if (!synthRef.current) return;
+    const utt = new SpeechSynthesisUtterance(utterance);
+    utt.rate = 0.95;
+    utt.lang = "en-US";
+    synthRef.current.speak(utt);
+  };
+
+  const playAll = () => {
+    if (!synthRef.current || muted || !text) return;
+    synthRef.current.cancel();
+    speak(text);
+  };
+
+  const stop = () => synthRef.current?.cancel();
+
+  // Auto-play on question change
+  useEffect(() => {
+    if (muted || !text) return;
+    playAll();
+    return () => synthRef.current?.cancel();
+  }, [text, muted]);
+
+  return { playAll, stop };
+}
+
+// ─── TTS Controls UI ─────────────────────────────────────────────────────────
+
+interface TTSControlsProps {
+  muted: boolean;
+  onToggleMute: () => void;
+  onReplay: () => void;
+}
+
+function TTSControls({ muted, onToggleMute, onReplay }: TTSControlsProps) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "8px",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        padding: "4px 8px 0 0",
+      }}>
+      <button
+        onClick={onReplay}
+        title="Replay audio"
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: "13px",
+          color: "#94a3b8",
+          padding: "2px 6px",
+          borderRadius: "4px",
+        }}>
+        ↺ Replay
+      </button>
+      <button
+        onClick={onToggleMute}
+        title={muted ? "Unmute audio" : "Mute audio"}
+        aria-label={muted ? "Unmute audio" : "Mute audio"}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: "16px",
+          color: muted ? "#cbd5e1" : "#64748b",
+          padding: "2px 4px",
+          borderRadius: "4px",
+        }}>
+        {muted ? "🔇" : "🔊"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface VariableStackEntry {
   questionId: string;
   variables: TResponseVariables;
 }
+
+// ─── Survey Component ─────────────────────────────────────────────────────────
 
 export function Survey({
   appUrl,
@@ -98,8 +186,6 @@ export function Survey({
     return null;
   }, [appUrl, environmentId, mode, survey.id, userId, singleUseId, singleUseResponseId, contactId]);
 
-  // Update the responseQueue to use the stored responseId
-
   const [hasInteracted, setHasInteracted] = useState(false);
 
   const [localSurvey, setlocalSurvey] = useState<TJsEnvironmentStateSurvey>(survey);
@@ -152,10 +238,8 @@ export function Survey({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only recompute when blocks structure changes
   }, [survey.blocks]);
 
-  // state to keep track of the questions that were made required by each specific question's logic
   const questionRequiredByMap = useRef<Record<string, string[]>>({});
 
-  // Update localSurvey when the survey prop changes (it changes in case of survey editor)
   useEffect(() => {
     setlocalSurvey(survey);
   }, [survey]);
@@ -171,10 +255,8 @@ export function Survey({
 
   const autoFocusEnabled = autoFocus ?? window.self === window.top;
 
-  // Block-based navigation: track current block ID instead of question ID
   const [blockId, setBlockId] = useState(() => {
     if (startAtQuestionId) {
-      // If starting at a specific question, find its parent block
       const startBlock = findBlockByElementId(localSurvey.blocks, startAtQuestionId);
       return startBlock?.id || localSurvey.blocks[0]?.id;
     } else if (localSurvey.welcomeCard.enabled) {
@@ -196,8 +278,11 @@ export function Survey({
   const [history, setHistory] = useState<string[]>([]);
   const [responseData, setResponseData] = useState<TResponseData>(hiddenFieldsRecord ?? {});
   const [_variableStack, setVariableStack] = useState<VariableStackEntry[]>([]);
-
   const [ttc, setTtc] = useState<TResponseTtc>({});
+
+  // ─── TTS State ──────────────────────────────────────────────────────────────
+  const [ttsMuted, setTtsMuted] = useState(false);
+
   const cardArrangement = useMemo(() => {
     if (localSurvey.type === "link") {
       return styling.cardArrangement?.linkSurveys ?? "straight";
@@ -205,9 +290,44 @@ export function Survey({
     return styling.cardArrangement?.appSurveys ?? "straight";
   }, [localSurvey.type, styling.cardArrangement?.linkSurveys, styling.cardArrangement?.appSurveys]);
 
-  // Current block tracking (replaces currentQuestionIndex)
   const currentBlockIndex = localSurvey.blocks.findIndex((b) => b.id === blockId);
   const currentBlock = localSurvey.blocks[currentBlockIndex];
+
+  // ─── TTS Text ───────────────────────────────────────────────────────────────
+  // Builds the spoken string from the current block's headline + choices
+  const ttsText = useMemo(() => {
+    if (!currentBlock) return "";
+    return currentBlock.elements
+      .map((el: any) => {
+        const parts: string[] = [];
+        const headline =
+          el.headline?.[selectedLanguage] ??
+          el.headline?.default ??
+          "";
+        if (headline) parts.push(headline);
+        if (el.choices?.length) {
+          const optionLabels = el.choices
+            .map((c: any) => c.label?.[selectedLanguage] ?? c.label?.default ?? "")
+            .filter(Boolean)
+            .join(". ");
+          if (optionLabels) parts.push("Your options are: " + optionLabels);
+        }
+        return parts.join(". ");
+      })
+      .filter(Boolean)
+      .join(". ");
+  }, [currentBlock, selectedLanguage]);
+
+  const { playAll: ttsPlayAll, stop: ttsStop } = useTTS(ttsText, ttsMuted);
+
+  const handleToggleMute = () => {
+    if (!ttsMuted) {
+      ttsStop();
+    }
+    setTtsMuted((prev) => !prev);
+  };
+
+  // ─── End TTS ────────────────────────────────────────────────────────────────
 
   const contentRef = useRef<HTMLDivElement | null>(null);
   const showProgressBar = !styling.hideProgressBar;
@@ -221,7 +341,6 @@ export function Survey({
 
   const onFileUpload = async (file: TJsFileUploadParams["file"], params?: TUploadFileConfig) => {
     if (isPreviewMode) {
-      // return mock url since an url is required for the preview
       return `https://example.com/${file.name}`;
     }
 
@@ -242,14 +361,12 @@ export function Survey({
   };
 
   useEffect(() => {
-    // scroll to top when block changes
     if (contentRef.current) {
       contentRef.current.scrollTop = 0;
     }
   }, [blockId]);
 
   const createDisplay = useCallback(async () => {
-    // Skip display creation in preview mode but still trigger the onDisplayCreated callback
     if (isPreviewMode) {
       if (onDisplayCreated) {
         onDisplayCreated();
@@ -296,14 +413,11 @@ export function Survey({
   ]);
 
   useEffect(() => {
-    // call onDisplay when component is mounted
-
     if (appUrl && environmentId) {
       createDisplay();
     } else {
       onDisplay?.();
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onDisplay should only be called once
   }, []);
 
@@ -396,7 +510,6 @@ export function Survey({
         blocks: prevSurvey.blocks.map(updateBlockElements),
       }));
 
-      // remove the question from the map
       delete questionRequiredByMap.current[questionId];
     }
   };
@@ -443,7 +556,6 @@ export function Survey({
     const localResponseData = { ...responseData, ...data };
     let calculationResults = { ...currentVariables };
 
-    // Process a single logic rule
     const processLogicRule = (
       logic: TSurveyBlockLogic,
       currentJumpTarget: string | undefined,
@@ -483,7 +595,6 @@ export function Survey({
       };
     };
 
-    // Evaluate block-level logic
     const evaluateBlockLogic = () => {
       let firstJumpTarget: string | undefined;
       const allRequiredQuestionIds: string[] = [];
@@ -498,7 +609,6 @@ export function Survey({
         }
       }
 
-      // Use logicFallback if no jump target was set
       if (!firstJumpTarget && currentBlock.logicFallback) {
         firstJumpTarget = currentBlock.logicFallback;
       }
@@ -508,7 +618,6 @@ export function Survey({
 
     const { firstJumpTarget, allRequiredQuestionIds } = evaluateBlockLogic();
 
-    // Handle required questions
     const handleRequiredQuestions = (requiredIds: string[]) => {
       if (requiredIds.length > 0) {
         if (currentBlock.elements[0]) {
@@ -520,7 +629,6 @@ export function Survey({
 
     handleRequiredQuestions(allRequiredQuestionIds);
 
-    // Return the jump target (which is a block ID) or the next block in sequence
     const nextBlockId = firstJumpTarget || localSurvey.blocks[currentBlockIndex + 1]?.id;
 
     return {
@@ -543,7 +651,6 @@ export function Survey({
 
   const onResponseCreateOrUpdate = useCallback(
     async (responseUpdate: TResponseUpdate) => {
-      // Always trigger the onResponse callback even in preview mode
       if (!appUrl || !environmentId) {
         onResponse?.({
           data: responseUpdate.data,
@@ -556,11 +663,9 @@ export function Survey({
         return;
       }
 
-      // Skip response creation in preview mode but still trigger the onResponseCreated callback
       if (isPreviewMode) {
         onResponseCreated?.();
 
-        // When in preview mode, set isResponseSendingFinished to true if the response is finished
         if (responseUpdate.finished) {
           setIsResponseSendingFinished(true);
         }
@@ -626,14 +731,12 @@ export function Survey({
 
   useEffect(() => {
     if (isResponseSendingFinished && isSurveyFinished) {
-      // Post a message to the parent window indicating that the survey is completed.
-      window.parent.postMessage("formbricksSurveyCompleted", "*"); // NOSONAR typescript:S2819 // We can't check the targetOrigin here because we don't know the parent window's origin.
+      window.parent.postMessage("formbricksSurveyCompleted", "*"); // NOSONAR typescript:S2819
       onFinished?.();
     }
   }, [isResponseSendingFinished, isSurveyFinished, onFinished]);
 
   const onSubmit = async (surveyResponseData: TResponseData, responsettc: TResponseTtc) => {
-    // Get the first responded element ID for tracking
     const respondedElementIds = Object.keys(surveyResponseData);
     const firstRespondedElementId = respondedElementIds[0];
 
@@ -678,35 +781,29 @@ export function Survey({
     if (nextBlockId) {
       setBlockId(nextBlockId);
     } else if (finished) {
-      // Survey is finished, show the first ending or set to a value > blocks.length
       const firstEndingId = localSurvey.endings[0]?.id as string | undefined;
       if (firstEndingId) {
         setBlockId(firstEndingId);
       } else {
-        // No endings defined, set blockId to trigger ending screen
         setBlockId("end");
       }
     }
-    // add current block to history
     setHistory([...history, blockId]);
     setLoadingElement(false);
   };
 
   const onBack = (): void => {
     let prevBlockId: string | undefined;
-    // use history if available
     if (history.length > 0) {
       const newHistory = [...history];
       prevBlockId = newHistory.pop();
       setHistory(newHistory);
     } else {
-      // otherwise go back to previous block in array
       prevBlockId = localSurvey.blocks[currentBlockIndex - 1]?.id;
     }
     popVariableState();
     if (!prevBlockId) throw new Error("Block not found");
 
-    // Revert required changes by the first element in the previous block
     const prevBlock = localSurvey.blocks.find((b) => b.id === prevBlockId);
     if (prevBlock?.elements[0]) {
       revertRequiredChangesByQuestion(prevBlock.elements[0].id);
@@ -840,11 +937,14 @@ export function Survey({
     const isLanguageSwitchVisible = getShowLanguageSwitch(offset);
     const isCloseButtonVisible = getShowSurveyCloseButton(offset);
 
+    // Only show TTS controls on active question cards (not welcome/ending)
+    const showTTSControls = offset === 0 && blockIdx >= 0 && blockIdx < localSurvey.blocks.length;
+
     return (
       <AutoCloseWrapper
         survey={localSurvey}
         onClose={onClose}
-        questionIdx={blockIdx} // Now tracks block index, not question index
+        questionIdx={blockIdx}
         hasInteracted={hasInteracted}
         setHasInteracted={setHasInteracted}>
         <div
@@ -887,6 +987,16 @@ export function Survey({
                 </div>
               </div>
             </div>
+
+            {/* TTS Controls — rendered above question content on active question cards */}
+            {showTTSControls && (
+              <TTSControls
+                muted={ttsMuted}
+                onToggleMute={handleToggleMute}
+                onReplay={ttsPlayAll}
+              />
+            )}
+
             <div
               ref={contentRef}
               className={cn(
