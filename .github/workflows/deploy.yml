@@ -21,9 +21,8 @@ jobs:
         run: pnpm --filter @formbricks/surveys build
       
       - name: Copy survey page
-        run: cp public/index.html packages/surveys/dist/index.html- name: Copy survey page
         run: cp public/index.html packages/surveys/dist/index.html
-
+        
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
