@@ -14,27 +14,20 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Create required env file
-        run: cp apps/web/.env.example apps/web/.env
-
       - name: Install deps
-        run: pnpm install
+        run: npm install -g pnpm && pnpm install
 
-      - name: Build surveys package and all dependencies
-        run: pnpm --filter @formbricks/surveys... build
+      - name: Build survey-ui dependency first
+        run: pnpm --filter @formbricks/survey-ui build
+
+      - name: Build surveys package
+        run: pnpm --filter @formbricks/surveys build
 
       - name: Copy survey page
         run: cp public/index.html packages/surveys/dist/index.html
-
-      - name: Disable Jekyll
-        run: touch packages/surveys/dist/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./packages/surveys/dist
-          enable_jekyll: false
