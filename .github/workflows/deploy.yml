@@ -17,12 +17,15 @@ jobs:
       - name: Install deps
         run: npm install -g pnpm && pnpm install
 
+      - name: Build survey-ui dependency first
+        run: pnpm --filter @formbricks/survey-ui build
+
       - name: Build surveys package
         run: pnpm --filter @formbricks/surveys build
-      
+
       - name: Copy survey page
         run: cp public/index.html packages/surveys/dist/index.html
-        
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
