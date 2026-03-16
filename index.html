@@ -52,12 +52,23 @@
   ></iframe>
 
   <script>
+    // --- Test questions mapped by position ---
+    var questions = [
+      "Welcome to the survey. Please click Next to begin.",
+      "Question 1: What is your full name?",
+      "Question 2: What is your date of birth?",
+      "Question 3: What is your address?",
+      "Question 4: How would you rate your experience? Your options are: Excellent, Good, Fair, Poor.",
+      "Thank you for completing the survey."
+    ];
+
     var muted = false;
+    var currentIndex = 0;
     var lastText = "";
     var synth = window.speechSynthesis;
 
     function speak(text) {
-      if (muted || !text || text === lastText) return;
+      if (muted || !text) return;
       lastText = text;
       synth.cancel();
       var utt = new SpeechSynthesisUtterance(text);
@@ -75,13 +86,45 @@
       synth.speak(utt);
     }
 
-    // Listen for messages from Formbricks iframe
+    // Speak first question on load
+    window.addEventListener("load", function() {
+      setTimeout(function() {
+        speak(questions[0]);
+      }, 1500);
+    });
+
+    // Watch iframe URL changes via polling — fires when user advances questions
+    var iframe = document.getElementById("survey-frame");
+    var lastSrc = iframe.src;
+
+    setInterval(function() {
+      try {
+        var currentSrc = iframe.contentWindow.location.href;
+        if (currentSrc !== lastSrc) {
+          lastSrc = currentSrc;
+          currentIndex++;
+          if (questions[currentIndex]) {
+            speak(questions[currentIndex]);
+          }
+        }
+      } catch(e) {
+        // cross-origin block — fall through
+      }
+    }, 300);
+
+    // Fallback: listen for formbricks postMessage events
     window.addEventListener("message", function(event) {
       if (event.origin !== "https://app.formbricks.com") return;
-      console.log("formbricks message:", event.data);
-      // Speak any question text that comes through
+      console.log("formbricks event:", event.data);
       if (event.data && event.data.questionText) {
         speak(event.data.questionText);
+      }
+      // Advance on any navigation event
+      if (event.data && (event.data.type === "nextQuestion" || event.data.type === "prevQuestion")) {
+        currentIndex = event.data.questionIndex || currentIndex + 1;
+        if (questions[currentIndex]) {
+          speak(questions[currentIndex]);
+        }
       }
     });
 
