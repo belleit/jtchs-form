@@ -25,12 +25,14 @@ jobs:
         # The "..." tells Turbo to build @formbricks/surveys
         # AND everything it depends on, in the correct order
 
-      - name: Copy survey page
-        run: cp public/index.html packages/surveys/dist/index.html
-
+      - name: Prepare dist
+        run: |
+          cp public/index.html packages/surveys/dist/index.html
+          cp packages/surveys/dist/index.umd.cjs packages/surveys/dist/formbricks.js
+          
       - name: Check build output
         run: ls -la packages/surveys/dist/
-        
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
