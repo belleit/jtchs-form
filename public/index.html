@@ -23,5 +23,13 @@
       }
     }, 100);
   </script>
+  <script src="./formbricks.js"></script>
+<script>
+  setTimeout(function() {
+    console.log("window.formbricks:", window.formbricks);
+    console.log("all formbricks keys:", Object.keys(window).filter(k => k.toLowerCase().includes('form')));
+    console.log("full window check:", typeof window.formbricks);
+  }, 2000);
+</script>
 </body>
 </html>
