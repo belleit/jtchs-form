@@ -10,14 +10,21 @@
 
   <script src="./formbricks.js"></script>
   <script>
-    setTimeout(function() {
-      window.formbricksSurveys.renderSurveyInline({
-        containerId: "formbricks-survey",
-        environmentId: "cmms3molo09piu701aeg36oqf",
-        apiHost: "https://app.formbricks.com",
-        surveyId: "cmmtl178i8ivupr018cvotbyr",
-      });
-    }, 500);
-  </script>
+  setTimeout(function() {
+    window.formbricksSurveys.renderSurveyInline({
+      containerId: "formbricks-survey",
+      environmentId: "cmms3molo09piu701aeg36oqf",
+      apiHost: "https://app.formbricks.com",
+      surveyId: "cmmtl178i8ivupr018cvotbyr",
+      styling: {
+        roundness: 8,
+        cardArrangement: {
+          linkSurveys: "straight",
+          appSurveys: "straight"
+        }
+      },
+    });
+  }, 500);
+</script>
 </body>
 </html>
