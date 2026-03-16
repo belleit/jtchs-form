@@ -11,9 +11,13 @@
   <script src="./formbricks.js"></script>
   <script>
     setTimeout(function() {
-      console.log("formbricksSurveys:", window.formbricksSurveys);
-      console.log("keys:", Object.keys(window.formbricksSurveys));
-    }, 2000);
+      window.formbricksSurveys.renderSurveyInline({
+        containerId: "formbricks-survey",
+        environmentId: "cmms3molo09piu701aeg36oqf",
+        apiHost: "https://app.formbricks.com",
+        surveyId: "cmmtl178i8ivupr018cvotbyr",
+      });
+    }, 500);
   </script>
 </body>
 </html>
