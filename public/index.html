@@ -10,26 +10,10 @@
 
   <script src="./formbricks.js"></script>
   <script>
-    var interval = setInterval(function() {
-      if (window.formbricks) {
-        clearInterval(interval);
-        formbricks.init({
-          environmentId: "cmms3molo09piu701aeg36oqf",
-          apiHost: "https://app.formbricks.com",
-          mode: "inline",
-          inlineSurveyId: "cmmtl178i8ivupr018cvotbyr",
-          containerId: "formbricks-survey",
-        });
-      }
-    }, 100);
+    setTimeout(function() {
+      console.log("formbricksSurveys:", window.formbricksSurveys);
+      console.log("keys:", Object.keys(window.formbricksSurveys));
+    }, 2000);
   </script>
-  <script src="./formbricks.js"></script>
-<script>
-  setTimeout(function() {
-    console.log("window.formbricks:", window.formbricks);
-    console.log("all formbricks keys:", Object.keys(window).filter(k => k.toLowerCase().includes('form')));
-    console.log("full window check:", typeof window.formbricks);
-  }, 2000);
-</script>
 </body>
 </html>
