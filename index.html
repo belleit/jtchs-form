@@ -10,25 +10,29 @@
 
   <script src="./formbricks.js"></script>
   <script>
-    fetch("https://app.formbricks.com/api/v1/client/cmms3molo09piu701aeg36oqf/surveys/cmmtl178i8ivupr018cvotbyr")
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        console.log("survey data:", data);
-        window.formbricksSurveys.renderSurveyInline({
-          containerId: "formbricks-survey",
-          survey: data.data,
-          styling: {
-            roundness: 8,
-            cardArrangement: {
-              linkSurveys: "straight",
-              appSurveys: "straight"
-            }
-          },
-        });
-      })
-      .catch(function(err) {
-        console.error("failed to fetch survey:", err);
+    fetch("https://app.formbricks.com/api/v1/management/surveys/cmmtl178i8ivupr018cvotbyr", {
+      headers: {
+        "x-api-key": "fbk_XCT-FZMDY0GmLDM1geE2uhf3aaoVkJTuv6VesiDYel8"
+      }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      console.log("survey:", data);
+      window.formbricksSurveys.renderSurveyInline({
+        containerId: "formbricks-survey",
+        survey: data.data,
+        styling: {
+          roundness: 8,
+          cardArrangement: {
+            linkSurveys: "straight",
+            appSurveys: "straight"
+          }
+        },
       });
+    })
+    .catch(function(err) {
+      console.error("error:", err);
+    });
   </script>
 </body>
 </html>
