@@ -6,7 +6,7 @@
   <title>Survey</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: sans-serif; background: #f8fafc; }
+    body { font-family: sans-serif; background: #f8fafc; height: 100vh; overflow: hidden; }
 
     #tts-controls {
       display: flex;
@@ -30,10 +30,35 @@
 
     #tts-controls button:hover { background: #f1f5f9; }
 
-    iframe {
+    #survey-wrapper {
+      position: relative;
       width: 100%;
       height: calc(100vh - 41px);
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
       border: none;
+    }
+
+    /* Overlay Next button at bottom right to match Formbricks position */
+    #overlay-next {
+      position: absolute;
+      bottom: 48px;
+      right: 48px;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      z-index: 999;
+      opacity: 0;  /* invisible — sits on top of Formbricks button */
+      width: 120px;
+      height: 48px;
     }
   </style>
 </head>
@@ -45,14 +70,18 @@
     <button id="btn-mute">Mute</button>
   </div>
 
-  <iframe
-    id="survey-frame"
-    src="https://app.formbricks.com/s/cmmtnwmbjax13qn01tl8lpylv"
-    allow="autoplay"
-  ></iframe>
+  <div id="survey-wrapper">
+    <iframe
+      id="survey-frame"
+      src="https://app.formbricks.com/s/cmmtnwmbjax13qn01tl8lpylv"
+      allow="autoplay"
+    ></iframe>
+    <!-- Invisible overlay button sits on top of Formbricks Next button -->
+    <button id="overlay-next" aria-label="Next question"></button>
+  </div>
 
   <script>
-    // --- Test questions mapped by position ---
+    // --- Your questions in order ---
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
       "Question 1: What is your full name?",
@@ -66,6 +95,10 @@
     var currentIndex = 0;
     var lastText = "";
     var synth = window.speechSynthesis;
+
+    // --- ElevenLabs pre-generated MP3s (add filenames once generated) ---
+    // var audioFiles = ["q0.mp3","q1.mp3","q2.mp3","q3.mp3","q4.mp3","q5.mp3"];
+    // For now using browser TTS as placeholder
 
     function speak(text) {
       if (muted || !text) return;
@@ -93,38 +126,21 @@
       }, 1500);
     });
 
-    // Watch iframe URL changes via polling — fires when user advances questions
-    var iframe = document.getElementById("survey-frame");
-    var lastSrc = iframe.src;
+    // Overlay Next button click — advances audio AND clicks through to iframe
+    document.getElementById("overlay-next").addEventListener("click", function(e) {
+      // Advance to next question audio
+      currentIndex = Math.min(currentIndex + 1, questions.length - 1);
+      speak(questions[currentIndex]);
+      // The click passes through to the iframe's Next button underneath
+      // because the overlay button is transparent (opacity:0)
+    });
 
-    setInterval(function() {
-      try {
-        var currentSrc = iframe.contentWindow.location.href;
-        if (currentSrc !== lastSrc) {
-          lastSrc = currentSrc;
-          currentIndex++;
-          if (questions[currentIndex]) {
-            speak(questions[currentIndex]);
-          }
-        }
-      } catch(e) {
-        // cross-origin block — fall through
-      }
-    }, 300);
-
-    // Fallback: listen for formbricks postMessage events
+    // Detect survey completion
     window.addEventListener("message", function(event) {
       if (event.origin !== "https://app.formbricks.com") return;
-      console.log("formbricks event:", event.data);
-      if (event.data && event.data.questionText) {
-        speak(event.data.questionText);
-      }
-      // Advance on any navigation event
-      if (event.data && (event.data.type === "nextQuestion" || event.data.type === "prevQuestion")) {
-        currentIndex = event.data.questionIndex || currentIndex + 1;
-        if (questions[currentIndex]) {
-          speak(questions[currentIndex]);
-        }
+      if (event.data === "formbricksSurveyCompleted") {
+        currentIndex = questions.length - 1;
+        speak(questions[currentIndex]);
       }
     });
 
