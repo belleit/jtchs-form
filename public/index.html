@@ -206,13 +206,16 @@
     // ═══════════════════════════════════════════════
     //  CONFIG
     // ═══════════════════════════════════════════════
-    var GOOGLE_API_KEY = "AQ.Ab8RN6KFN8sus5AF8wgO5atM1RA4f0iORm3QB3kMcbLoZc4vIA";
+    var GOOGLE_API_KEY  = "AQ.Ab8RN6KFN8sus5AF8wgO5atM1RA4f0iORm3QB3kMcbLoZc4vIA"; // ← replace with your key
+    var GCP_PROJECT     = "sharprpm";
+    var GCP_REGION      = "us-central1";
 
-    var GOOGLE_VOICE = {
-      languageCode: "en-US",
-      name: "en-US-Neural2-F",   // Natural female Neural2 voice
-      ssmlGender: "FEMALE"
-    };
+    // Vertex AI TTS endpoint
+    var VERTEX_TTS_URL  = "https://" + GCP_REGION + "-aiplatform.googleapis.com/v1/projects/"
+                        + GCP_PROJECT + "/locations/" + GCP_REGION + "/publishers/google/models/text-to-speech:predict";
+
+    var VOICE_NAME      = "en-US-Neural2-F";   // natural female Neural2
+    var LANGUAGE_CODE   = "en-US";
 
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
@@ -229,7 +232,7 @@
     var currentIndex = 0;
     var muted        = false;
     var currentAudio = null;
-    var audioCache   = {};  // text -> base64 string
+    var audioCache   = {};
 
     // ═══════════════════════════════════════════════
     //  Debug logger
@@ -264,9 +267,7 @@
       statusDot.className = state || "";
       statusText.textContent = text || "Ready";
     }
-
     function setWave(on) { waveform.classList.toggle("active", on); }
-
     function updateCounter() {
       qCounter.textContent = "Q " + (currentIndex + 1) + " / " + questions.length;
       btnNext.disabled = (currentIndex >= questions.length - 1);
@@ -281,13 +282,12 @@
     }
 
     // ═══════════════════════════════════════════════
-    //  Google Cloud TTS
+    //  Vertex AI TTS
     // ═══════════════════════════════════════════════
     function fetchAndPlay(text) {
       if (muted) return;
       stopAudio();
 
-      // Instant replay from cache
       if (audioCache[text]) {
         log("Cache hit — playing instantly", "ok");
         playBase64(audioCache[text]);
@@ -295,38 +295,55 @@
       }
 
       setStatus("loading", "Generating…");
-      log("POST → Google Cloud TTS, voice=" + GOOGLE_VOICE.name);
-      log("Text: \"" + text.substring(0, 60) + (text.length > 60 ? "…" : "") + "\"");
+      log("POST → Vertex AI TTS (" + GCP_PROJECT + "/" + GCP_REGION + ")");
+      log("Voice: " + VOICE_NAME + " | Text: \"" + text.substring(0, 50) + "\"");
 
-      fetch("https://texttospeech.googleapis.com/v1/text:synthesize?key=" + GOOGLE_API_KEY, {
+      fetch(VERTEX_TTS_URL + "?key=" + GOOGLE_API_KEY, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          input: { text: text },
-          voice: GOOGLE_VOICE,
-          audioConfig: {
-            audioEncoding: "MP3",
-            speakingRate: 0.95,
-            pitch: 0
+          instances: [{
+            text: text
+          }],
+          parameters: {
+            voiceSelectionParams: {
+              languageCode: LANGUAGE_CODE,
+              name: VOICE_NAME,
+              ssmlGender: "FEMALE"
+            },
+            audioConfig: {
+              audioEncoding: "MP3",
+              speakingRate: 0.95,
+              pitch: 0
+            }
           }
         })
       })
       .then(function(res) {
         log("HTTP " + res.status + " " + res.statusText, res.ok ? "ok" : "err");
-        if (!res.ok) {
-          return res.text().then(function(body) {
-            throw new Error("HTTP " + res.status + ": " + body.substring(0, 300));
-          });
-        }
-        return res.json();
+        return res.json().then(function(data) {
+          if (!res.ok) {
+            var msg = (data.error && data.error.message) ? data.error.message : JSON.stringify(data).substring(0, 200);
+            throw new Error("HTTP " + res.status + ": " + msg);
+          }
+          return data;
+        });
       })
       .then(function(data) {
-        if (!data.audioContent) {
-          throw new Error("No audioContent in response — " + JSON.stringify(data).substring(0, 200));
+        // Vertex AI returns predictions array
+        var b64 = null;
+        if (data.predictions && data.predictions[0]) {
+          b64 = data.predictions[0].audioContent || data.predictions[0];
+        } else if (data.audioContent) {
+          b64 = data.audioContent;
         }
-        log("Audio received (" + Math.round(data.audioContent.length * 0.75 / 1024) + " KB)", "ok");
-        audioCache[text] = data.audioContent;
-        playBase64(data.audioContent);
+        if (!b64) {
+          log("Full response: " + JSON.stringify(data).substring(0, 300), "err");
+          throw new Error("Could not find audioContent in response — check debug log");
+        }
+        log("Audio received (" + Math.round(b64.length * 0.75 / 1024) + " KB)", "ok");
+        audioCache[text] = b64;
+        playBase64(b64);
       })
       .catch(function(err) {
         log("FAILED: " + err.message, "err");
@@ -435,7 +452,8 @@
     // ═══════════════════════════════════════════════
     window.addEventListener("load", function() {
       updateCounter();
-      log("Loaded. Voice: " + GOOGLE_VOICE.name + " | Questions: " + questions.length, "ok");
+      log("Loaded. Vertex AI TTS | Project: " + GCP_PROJECT + " | Region: " + GCP_REGION, "ok");
+      log("Voice: " + VOICE_NAME + " | Questions: " + questions.length, "ok");
       setTimeout(speakCurrent, 1500);
     });
   </script>
