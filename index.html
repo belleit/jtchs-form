@@ -14,7 +14,6 @@
       --status-ok: #22c55e; --status-err: #ef4444; --status-loading: #f59e0b;
     }
     body { font-family:'DM Sans',sans-serif; background:var(--bg); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
-
     #tts-controls { display:flex; align-items:center; gap:10px; padding:0 16px; height:54px; flex-shrink:0; background:var(--bar-bg); border-bottom:1px solid var(--bar-border); }
     .bar-label { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); }
     #status-pill { display:flex; align-items:center; gap:6px; background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:20px; padding:4px 12px; font-size:12px; color:var(--text-muted); min-width:130px; }
@@ -39,25 +38,16 @@
     .ctrl-btn:hover { background:var(--btn-hover); border-color:#94a3b8; }
     .ctrl-btn:active { transform:scale(.97); }
     .ctrl-btn.muted { background:#fef2f2; border-color:#fca5a5; color:var(--status-err); }
-
+    .ctrl-btn.active-btn { background:#dbeafe; border-color:#93c5fd; color:#1d4ed8; }
     #survey-wrapper { flex:1; position:relative; overflow:hidden; }
-
-    /* KEY: must be an <iframe>, sized to fill the wrapper */
-    #tally-iframe {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-
-    #debug-panel { display:none; position:fixed; bottom:0; left:0; right:0; background:#0f172a; color:#94a3b8; font-family:'Courier New',monospace; font-size:11.5px; padding:10px 16px; max-height:160px; overflow-y:auto; z-index:9999; border-top:2px solid #334155; }
+    #tally-iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+    #debug-panel { display:none; position:fixed; bottom:0; left:0; right:0; background:#0f172a; color:#94a3b8; font-family:'Courier New',monospace; font-size:11.5px; padding:10px 16px; max-height:200px; overflow-y:auto; z-index:9999; border-top:2px solid #334155; }
     #debug-panel.visible { display:block; }
     .log-line { margin:2px 0; line-height:1.5; }
     .log-line.err  { color:#f87171; }
     .log-line.ok   { color:#4ade80; }
     .log-line.info { color:#60a5fa; }
-
+    .log-line.warn { color:#fbbf24; }
     #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1e293b; color:#fff; font-size:13px; font-weight:500; padding:10px 20px; border-radius:10px; z-index:9998; pointer-events:none; transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s; opacity:0; white-space:nowrap; }
     #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
   </style>
@@ -78,17 +68,18 @@
 
   <div id="survey-wrapper">
     <!--
-      Must be an <iframe> (not a div) with data-tally-src.
-      embed.js finds iframes with data-tally-src and copies it to src to activate them.
-      Using /embed/ path ensures the SDK bridge is active.
+      Set src DIRECTLY — no embed.js dependency at all.
+      /embed/ path is required for postMessage events.
+      autoFocus=0 prevents scroll-jump on load.
     -->
     <iframe
       id="tally-iframe"
-      data-tally-src="https://tally.so/embed/WOPEQj?alignLeft=1&transparentBackground=1"
+      src="https://tally.so/embed/WOPEQj?autoFocus=0&transparentBackground=1"
       frameborder="0"
       marginheight="0"
       marginwidth="0"
       title="JTCHS Survey"
+      allow="camera; microphone; autoplay"
     ></iframe>
   </div>
 
@@ -96,7 +87,6 @@
   <div id="toast"></div>
 
   <script>
-    // ── Questions ─────────────────────────────────────────────────────────────
     var questions = [
       "Welcome to the JTCHS survey. Please click Next to begin.",
       "Question 1: I feel that my values align with the company mission and culture. Select a number from 1 to 10.",
@@ -110,6 +100,7 @@
     var muted         = false;
     var selectedVoice = null;
     var synth         = window.speechSynthesis;
+    var formLoaded    = false;
 
     var debugPanel = document.getElementById("debug-panel");
     var statusDot  = document.getElementById("status-dot");
@@ -119,6 +110,12 @@
     var voiceLabel = document.getElementById("voice-label");
     var toast      = document.getElementById("toast");
 
+    // ── Debug — auto-open on load so you can see everything ──────────────────
+    debugPanel.classList.add("visible");
+    document.getElementById("btn-debug").addEventListener("click", function() {
+      debugPanel.classList.toggle("visible");
+    });
+
     function log(msg, type) {
       var line = document.createElement("div");
       line.className = "log-line " + (type||"info");
@@ -126,9 +123,6 @@
       debugPanel.appendChild(line);
       debugPanel.scrollTop = debugPanel.scrollHeight;
     }
-    document.getElementById("btn-debug").addEventListener("click", function() {
-      debugPanel.classList.toggle("visible");
-    });
 
     function setStatus(s,t){ statusDot.className=s||""; statusText.textContent=t||"Ready"; }
     function setWave(on){ waveform.classList.toggle("active",on); }
@@ -136,12 +130,13 @@
     var toastTimer;
     function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toast.classList.remove("show"); },2800); }
 
+    // ── Voices ────────────────────────────────────────────────────────────────
     var PREF = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English"];
     function pickBestVoice(voices) {
       var en = voices.filter(function(v){ return v.lang&&v.lang.startsWith("en"); });
       for (var i=0;i<PREF.length;i++) {
         var m = en.find(function(v){ return v.name.indexOf(PREF[i])!==-1; });
-        if (m){ log("Voice: "+m.name,"ok"); return m; }
+        if (m) return m;
       }
       return en.find(function(v){ return v.lang==="en-US"; })||en[0]||voices[0]||null;
     }
@@ -149,85 +144,77 @@
       var v=synth.getVoices(); if(!v.length)return;
       selectedVoice=pickBestVoice(v);
       voiceLabel.textContent=selectedVoice?"🎙 "+selectedVoice.name:"Default voice";
+      log("Voice ready: "+(selectedVoice?selectedVoice.name:"default"), "ok");
     }
     if(synth.onvoiceschanged!==undefined)synth.onvoiceschanged=loadVoices;
     loadVoices();
 
+    // ── TTS ───────────────────────────────────────────────────────────────────
     function speak(text){
       if(muted||!text)return; synth.cancel();
       var utt=new SpeechSynthesisUtterance(text);
       if(selectedVoice)utt.voice=selectedVoice;
       utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
-      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); log("▶ "+text.substring(0,60),"ok"); };
-      utt.onend=function(){ setStatus("","Ready"); setWave(false); log("■ Done"); };
-      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); log("TTS error: "+e.error,"err"); };
+      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); };
+      utt.onend=function(){ setStatus("","Ready"); setWave(false); };
+      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","TTS Error"); setWave(false); log("TTS error: "+e.error,"err"); };
       setStatus("loading","Speaking…"); synth.speak(utt);
     }
     function speakCurrent(){ updateCounter(); speak(questions[currentIndex]); }
 
-    // ── Tally postMessage listener ────────────────────────────────────────────
+    // ── ALL postMessage events — log everything, not just tally- ─────────────
     window.addEventListener("message", function(ev) {
-      if (!ev.data || typeof ev.data !== "object") return;
-      var type = ev.data.type || ev.data.event;
-      if (!type || typeof type !== "string" || !type.startsWith("tally-")) return;
+      // Log every single message so we can see what Tally actually sends
+      var origin = ev.origin || "unknown";
+      var data   = ev.data;
+      var type   = (data && typeof data === "object") ? (data.type || data.event || "no-type") : typeof data;
 
-      log("EVENT: " + type + " " + JSON.stringify(ev.data), "info");
+      log("MSG from "+origin+" | type="+type+" | "+JSON.stringify(data).substring(0,120), "warn");
 
-      switch(type) {
+      if (!data || typeof data !== "object") return;
+      var t = data.type || data.event;
+      if (!t || typeof t !== "string") return;
+
+      switch(t) {
         case "tally-form-loaded":
-          log("Form loaded → welcome", "ok");
+          formLoaded = true;
+          log("✓ tally-form-loaded fired!", "ok");
           currentIndex = 0;
           speakCurrent();
           break;
         case "tally-form-page-view":
-          if (typeof ev.data.pageIndex === "number") {
-            currentIndex = ev.data.pageIndex;
+          if (typeof data.pageIndex === "number") {
+            currentIndex = data.pageIndex;
           } else {
             currentIndex = Math.min(currentIndex + 1, questions.length - 1);
           }
-          log("Page → Q" + (currentIndex + 1), "ok");
+          log("✓ tally-form-page-view → Q"+(currentIndex+1), "ok");
           speakCurrent();
           break;
         case "tally-form-submit":
-          log("Submitted!", "ok");
+          log("✓ tally-form-submit fired!", "ok");
           currentIndex = questions.length - 1;
           speakCurrent();
           showToast("✓ Survey submitted");
           break;
+        default:
+          // Already logged above
+          break;
       }
     });
 
-    // ── Load embed.js then call loadEmbeds() ──────────────────────────────────
-    // Official pattern from Tally developer docs.
-    (function() {
-      var W = "https://tally.so/widgets/embed.js";
-
-      function load() {
-        if (typeof Tally !== "undefined") {
-          log("Calling Tally.loadEmbeds()", "ok");
-          Tally.loadEmbeds();
-        } else {
-          // Fallback: manually copy data-tally-src → src
-          document.querySelectorAll("iframe[data-tally-src]:not([src])").forEach(function(el) {
-            el.src = el.getAttribute("data-tally-src");
-            log("Fallback: set iframe src directly", "info");
-          });
-        }
+    // ── iframe load event ─────────────────────────────────────────────────────
+    var iframe = document.getElementById("tally-iframe");
+    iframe.addEventListener("load", function() {
+      log("iframe onload fired (src="+iframe.src+")", "ok");
+      // Speak welcome on iframe load as a reliable fallback
+      if (!formLoaded) {
+        log("No tally-form-loaded yet — speaking welcome via iframe.onload fallback", "warn");
+        speakCurrent();
       }
+    });
 
-      if (typeof Tally !== "undefined") {
-        load();
-      } else if (!document.querySelector('script[src="' + W + '"]')) {
-        var s = document.createElement("script");
-        s.src = W;
-        s.onload = function() { log("embed.js loaded ✓", "ok"); load(); };
-        s.onerror = function() { log("embed.js failed — fallback", "err"); load(); };
-        document.body.appendChild(s);
-        log("Loading Tally embed.js…", "info");
-      }
-    })();
-
-    // ── Controls ─────────────────────────────────────────────────────────────
+    // ── Controls ──────────────────────────────────────────────────────────────
     document.getElementById("btn-replay").addEventListener("click", function(){
       if(muted){showToast("Unmute first");return;}
       speak(questions[currentIndex]); showToast("↺ Replaying…");
@@ -238,18 +225,12 @@
       else { this.textContent="🔊 Mute"; this.classList.remove("muted"); setStatus("","Ready"); showToast("Audio on"); }
     });
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ── Init ──────────────────────────────────────────────────────────────────
     window.addEventListener("load", function(){
       updateCounter();
-      log("Ready. Form: WOPEQj", "ok");
+      log("Page loaded. iframe src: "+iframe.src, "ok");
+      log("Listening for ALL postMessage events…", "info");
       setTimeout(loadVoices, 500);
-      // Safety fallback speak if tally-form-loaded never fires
-      setTimeout(function(){
-        if (currentIndex === 0 && statusText.textContent === "Ready") {
-          log("Fallback: speaking welcome (no tally-form-loaded after 6s)", "info");
-          speakCurrent();
-        }
-      }, 6000);
     });
   </script>
 </body>
