@@ -43,7 +43,13 @@
 
     /* ── Survey wrapper ── */
     #survey-wrapper { flex:1; position:relative; overflow:hidden; }
-    iframe { width:100%; height:100%; border:none; display:block; }
+
+    /* Tally embed div fills the wrapper */
+    #tally-embed-container {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
 
     /* ── Debug panel ── */
     #debug-panel { display:none; position:fixed; bottom:0; left:0; right:0; background:#0f172a; color:#94a3b8; font-family:'Courier New',monospace; font-size:11.5px; padding:10px 16px; max-height:160px; overflow-y:auto; z-index:9999; border-top:2px solid #334155; }
@@ -72,20 +78,30 @@
   </div>
 
   <div id="survey-wrapper">
-    <iframe
-      id="survey-frame"
-      src="https://tally.so/r/eqLQze"
-      allow="autoplay"
-    ></iframe>
+    <!--
+      Tally embed SDK approach:
+      The data-tally-src attribute tells the embed.js script to render
+      the form here. This activates the postMessage event bridge that
+      fires tally-form-loaded, tally-form-page-view, and tally-form-submit.
+    -->
+    <div id="tally-embed-container"
+         data-tally-src="https://tally.so/r/WOPEQj"
+         data-tally-width="100%"
+         data-tally-height="100%"
+         data-tally-emoji-text="👋"
+         data-tally-emoji-animation="wave">
+    </div>
   </div>
+
+  <!-- Tally embed SDK — MUST load after the div is in the DOM -->
+  <script async src="https://tally.so/widgets/embed.js"></script>
 
   <div id="debug-panel"></div>
   <div id="toast"></div>
 
   <script>
-    // ── Questions — edit to match your Tally form pages exactly ─────────────
-    // Each entry is spoken when Tally fires a page-view event.
-    // Index 0 = first page load, index 1 = page 2, etc.
+    // ── Questions — update these to match your actual JTCHS WOPEQj form pages ──
+    // Index 0 = welcome / first page, last index = thank-you / submission
     var questions = [
       "Welcome to the JTCHS survey. Please click Next to begin.",
       "Question 1: I feel that my values align with the company mission and culture. Select a number from 1 to 10.",
@@ -151,27 +167,29 @@
       var utt=new SpeechSynthesisUtterance(text);
       if(selectedVoice)utt.voice=selectedVoice;
       utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
-      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); log("▶ "+text.substring(0,50)+"…","ok"); };
+      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); log("▶ "+text.substring(0,60)+"…","ok"); };
       utt.onend=function(){ setStatus("","Ready"); setWave(false); log("■ Done"); };
-      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); };
+      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); log("TTS error: "+e.error,"err"); };
       setStatus("loading","Speaking…"); synth.speak(utt);
     }
     function speakCurrent(){ updateCounter(); speak(questions[currentIndex]); }
 
     // ── Tally postMessage events ─────────────────────────────────────────────
     //
-    // Tally fires these events to the parent window:
+    // With embed.js loaded, Tally fires to the parent window:
     //   tally-form-loaded        — iframe is ready
-    //   tally-form-page-view     — user moved to a new page/question ← KEY
+    //   tally-form-page-view     — user moved to a new page   ← KEY
     //   tally-form-submit        — form submitted
-    //
-    // No click interception, no zones, no hacks. The form tells us.
     //
     window.addEventListener("message", function(ev) {
       if (!ev.data || typeof ev.data !== "object") return;
 
       var type = ev.data.type || ev.data.event;
-      log("Tally event: " + JSON.stringify(ev.data), "info");
+
+      // Only act on Tally events
+      if (!type || !type.startsWith("tally-")) return;
+
+      log("Tally event: " + type + " | data: " + JSON.stringify(ev.data), "info");
 
       switch(type) {
 
@@ -182,14 +200,13 @@
           break;
 
         case "tally-form-page-view":
-          // Tally sends the page number in ev.data.pageIndex (0-based)
-          // Use it directly if available, otherwise just increment
+          // Tally sends pageIndex (0-based) when available
           if (typeof ev.data.pageIndex === "number") {
             currentIndex = ev.data.pageIndex;
           } else {
             currentIndex = Math.min(currentIndex + 1, questions.length - 1);
           }
-          log("Page view → Q" + (currentIndex+1), "ok");
+          log("Page view → Q" + (currentIndex + 1), "ok");
           speakCurrent();
           break;
 
@@ -217,8 +234,17 @@
     // ── Init ─────────────────────────────────────────────────────────────────
     window.addEventListener("load", function(){
       updateCounter();
-      log("Waiting for Tally form-loaded event…","ok");
+      log("Tally embed SDK loading for form WOPEQj…","ok");
+      log("Waiting for tally-form-loaded event…","ok");
       setTimeout(function(){ loadVoices(); }, 500);
+
+      // Fallback: if tally-form-loaded never fires within 5s, speak welcome anyway
+      setTimeout(function(){
+        if (currentIndex === 0 && statusText.textContent === "Ready") {
+          log("Fallback: speaking welcome (no tally-form-loaded received)","info");
+          speakCurrent();
+        }
+      }, 5000);
     });
   </script>
 </body>
