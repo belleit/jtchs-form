@@ -7,231 +7,150 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
     :root {
-      --bg: #f4f6f9;
-      --bar-bg: #ffffff;
-      --bar-border: #e2e8f0;
-      --text-primary: #1e293b;
-      --text-muted: #64748b;
-      --accent: #2563eb;
-      --btn-bg: #f1f5f9;
-      --btn-border: #cbd5e1;
-      --btn-hover: #e2e8f0;
-      --status-ok: #22c55e;
-      --status-err: #ef4444;
-      --status-loading: #f59e0b;
+      --bg: #f4f6f9; --bar-bg: #ffffff; --bar-border: #e2e8f0;
+      --text-primary: #1e293b; --text-muted: #64748b; --accent: #2563eb;
+      --btn-bg: #f1f5f9; --btn-border: #cbd5e1; --btn-hover: #e2e8f0;
+      --status-ok: #22c55e; --status-err: #ef4444; --status-loading: #f59e0b;
     }
-
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      font-family: 'DM Sans', sans-serif; background: var(--bg);
+      height: 100vh; overflow: hidden; display: flex; flex-direction: column;
     }
 
+    /* ── Top bar ── */
     #tts-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 16px;
-      height: 54px;
-      flex-shrink: 0;
-      background: var(--bar-bg);
-      border-bottom: 1px solid var(--bar-border);
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 16px; height: 54px; flex-shrink: 0;
+      background: var(--bar-bg); border-bottom: 1px solid var(--bar-border);
     }
-
-    .bar-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
+    .bar-label { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); }
     #status-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: 20px;
-      padding: 4px 12px;
-      font-size: 12px;
-      color: var(--text-muted);
-      min-width: 130px;
+      display:flex; align-items:center; gap:6px;
+      background:var(--btn-bg); border:1px solid var(--btn-border);
+      border-radius:20px; padding:4px 12px; font-size:12px; color:var(--text-muted); min-width:130px;
     }
-
-    #status-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #94a3b8;
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-    #status-dot.loading { background: var(--status-loading); animation: pulse 1s infinite; }
-    #status-dot.playing { background: var(--status-ok); }
-    #status-dot.error   { background: var(--status-err); }
+    #status-dot { width:7px; height:7px; border-radius:50%; background:#94a3b8; flex-shrink:0; transition:background .3s; }
+    #status-dot.loading { background:var(--status-loading); animation:pulse 1s infinite; }
+    #status-dot.playing { background:var(--status-ok); }
+    #status-dot.error   { background:var(--status-err); }
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
-
-    #waveform {
-      display: flex; align-items: center; gap: 2px; height: 18px;
-      opacity: 0; transition: opacity 0.3s;
-    }
-    #waveform.active { opacity: 1; }
-    #waveform span {
-      display: block; width: 3px; border-radius: 2px;
-      background: var(--accent);
-      animation: wave 0.8s ease-in-out infinite;
-    }
-    #waveform span:nth-child(1){height:6px;  animation-delay:0s}
-    #waveform span:nth-child(2){height:14px; animation-delay:.1s}
-    #waveform span:nth-child(3){height:10px; animation-delay:.2s}
-    #waveform span:nth-child(4){height:16px; animation-delay:.15s}
-    #waveform span:nth-child(5){height:8px;  animation-delay:.05s}
+    #waveform { display:flex; align-items:center; gap:2px; height:18px; opacity:0; transition:opacity .3s; }
+    #waveform.active { opacity:1; }
+    #waveform span { display:block; width:3px; border-radius:2px; background:var(--accent); animation:wave .8s ease-in-out infinite; }
+    #waveform span:nth-child(1){height:6px;animation-delay:0s}
+    #waveform span:nth-child(2){height:14px;animation-delay:.1s}
+    #waveform span:nth-child(3){height:10px;animation-delay:.2s}
+    #waveform span:nth-child(4){height:16px;animation-delay:.15s}
+    #waveform span:nth-child(5){height:8px;animation-delay:.05s}
     @keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
-
-    .spacer { flex: 1; }
-
+    .spacer { flex:1; }
     #voice-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: 8px;
-      padding: 5px 10px;
-      max-width: 180px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size:11px; color:var(--text-muted);
+      background:var(--btn-bg); border:1px solid var(--btn-border);
+      border-radius:8px; padding:5px 10px; max-width:180px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
-
     #q-counter {
-      font-size: 12px; font-weight: 600; color: var(--text-muted);
-      background: var(--btn-bg); border: 1px solid var(--btn-border);
-      border-radius: 8px; padding: 5px 12px;
+      font-size:12px; font-weight:600; color:var(--text-muted);
+      background:var(--btn-bg); border:1px solid var(--btn-border);
+      border-radius:8px; padding:5px 12px;
     }
-
     .ctrl-btn {
-      display: flex; align-items: center; gap: 6px;
-      background: var(--btn-bg); border: 1px solid var(--btn-border);
-      border-radius: 8px; padding: 6px 14px;
-      font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif;
-      color: var(--text-primary); cursor: pointer;
-      transition: background .15s, border-color .15s, transform .1s;
-      user-select: none;
+      display:flex; align-items:center; gap:6px;
+      background:var(--btn-bg); border:1px solid var(--btn-border);
+      border-radius:8px; padding:6px 14px;
+      font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif;
+      color:var(--text-primary); cursor:pointer;
+      transition:background .15s,border-color .15s,transform .1s; user-select:none;
     }
-    .ctrl-btn:hover { background: var(--btn-hover); border-color: #94a3b8; }
-    .ctrl-btn:active { transform: scale(.97); }
+    .ctrl-btn:hover { background:var(--btn-hover); border-color:#94a3b8; }
+    .ctrl-btn:active { transform:scale(.97); }
     .ctrl-btn.muted { background:#fef2f2; border-color:#fca5a5; color:var(--status-err); }
+    #btn-next { display:none; } /* hidden — float-next handles it */
 
-    /* Hide the top-bar Next button — form's own Next is now the trigger */
-    #btn-next { display: none; }
+    /* ── Survey wrapper ── */
+    #survey-wrapper { flex:1; position:relative; overflow:hidden; }
+    iframe { width:100%; height:100%; border:none; }
 
-    #survey-wrapper {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-
-    iframe { width: 100%; height: 100%; border: none; }
-
-    /*
-     * ─── NEXT-BUTTON INTERCEPTOR ───────────────────────────────────────────────
-     * This transparent div sits exactly over the Formbricks "Next" button area.
-     * Formbricks always renders its Next button in the bottom-right of the card,
-     * which is horizontally centered in the viewport and roughly 380–540 px from
-     * the bottom of the iframe. Adjust --btn-w / --btn-h / positioning if your
-     * survey card is a different size.
+    /* ── Floating transparent Next button ──────────────────────────────────────
      *
-     * pointer-events: none → the real iframe button stays clickable underneath.
-     * We intercept via a brief mousedown / touchstart before the iframe gets it,
-     * using the capture phase (3rd arg = true on addEventListener).
-     * ───────────────────────────────────────────────────────────────────────────
-     */
-    #next-interceptor {
+     * A real <button> layered on top of the iframe's Next button.
+     * It is fully transparent — Formbricks button is visible through it.
+     *
+     * On click:
+     *   1. Advances audio question
+     *   2. Sets itself to pointer-events:none for 50ms, dispatches a new
+     *      click at the same coordinates — the browser now hits the iframe's
+     *      Formbricks Next button underneath — then restores pointer-events.
+     *
+     * CALIBRATION (enable Debug to see the blue dashed outline):
+     *   bottom  — move up/down  (increase % = move up)
+     *   right   — move left/right (0 = flush right edge)
+     *   width   — wider hit zone
+     *   height  — taller hit zone
+     * ──────────────────────────────────────────────────────────────────────── */
+    #float-next {
       position: absolute;
-
-      /*
-       * Sits over the Formbricks "Next" button only.
-       * The button is in the bottom-right of the card. Card bottom edge is
-       * roughly at 62% from the top of the iframe (varies with viewport height).
-       * We anchor from the bottom of the wrapper and go up just enough to cover
-       * the button + generous click margin, without overlapping survey content.
-       *
-       * right: aligns with the card's right edge (~330px from center)
-       * bottom: sits just above the card footer ("Powered by Formbricks")
-       * width/height: generously sized but still well below the rating row
-       */
-      right: calc(50% - 360px);
-      bottom: calc(38% - 10px);
-      width: 160px;   /* wider = more margin L/R */
-      height: 80px;   /* taller = more margin top/bottom, still below ratings */
-
+      right: 0;
+      bottom: calc(35% - 50px);
+      width: 220px;
+      height: 90px;
       background: transparent;
-      z-index: 10;
+      border: none;
       cursor: pointer;
-      outline: 2px dashed rgba(37,99,235,0.0);
+      z-index: 20;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+    #float-next.dbg {
+      background: rgba(37,99,235,0.08);
+      outline: 2px dashed rgba(37,99,235,0.6);
     }
 
+    /* ── Debug panel ── */
     #debug-panel {
-      display: none;
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      background: #0f172a;
-      color: #94a3b8;
-      font-family: 'Courier New', monospace;
-      font-size: 11.5px;
-      padding: 10px 16px;
-      max-height: 160px;
-      overflow-y: auto;
-      z-index: 9999;
-      border-top: 2px solid #334155;
+      display:none; position:fixed; bottom:0; left:0; right:0;
+      background:#0f172a; color:#94a3b8;
+      font-family:'Courier New',monospace; font-size:11.5px;
+      padding:10px 16px; max-height:160px; overflow-y:auto;
+      z-index:9999; border-top:2px solid #334155;
     }
-    #debug-panel.visible { display: block; }
-    .log-line { margin: 2px 0; line-height: 1.5; }
-    .log-line.err  { color: #f87171; }
-    .log-line.ok   { color: #4ade80; }
-    .log-line.info { color: #60a5fa; }
+    #debug-panel.visible { display:block; }
+    .log-line { margin:2px 0; line-height:1.5; }
+    .log-line.err  { color:#f87171; }
+    .log-line.ok   { color:#4ade80; }
+    .log-line.info { color:#60a5fa; }
 
+    /* ── Toast ── */
     #toast {
-      position: fixed;
-      bottom: 24px; left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: #1e293b; color: #fff;
-      font-size: 13px; font-weight: 500;
-      padding: 10px 20px; border-radius: 10px;
-      z-index: 9998; pointer-events: none;
-      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
-      opacity: 0; white-space: nowrap;
+      position:fixed; bottom:24px; left:50%;
+      transform:translateX(-50%) translateY(80px);
+      background:#1e293b; color:#fff; font-size:13px; font-weight:500;
+      padding:10px 20px; border-radius:10px;
+      z-index:9998; pointer-events:none;
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;
+      opacity:0; white-space:nowrap;
     }
-    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
   </style>
 </head>
 <body>
 
   <div id="tts-controls">
     <span class="bar-label">🔊 Audio</span>
-
     <div id="status-pill">
       <span id="status-dot"></span>
       <span id="status-text">Ready</span>
     </div>
-
-    <div id="waveform">
-      <span></span><span></span><span></span><span></span><span></span>
-    </div>
-
+    <div id="waveform"><span></span><span></span><span></span><span></span><span></span></div>
     <div class="spacer"></div>
-
     <div id="voice-label">Loading voices…</div>
     <div id="q-counter">Q 1 / 6</div>
     <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
     <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
     <button class="ctrl-btn" id="btn-debug">🐛 Debug</button>
-    <button class="ctrl-btn" id="btn-next">Next →</button><!-- hidden via CSS -->
+    <button class="ctrl-btn" id="btn-next">Next →</button>
   </div>
 
   <div id="survey-wrapper">
@@ -241,21 +160,15 @@
       allow="autoplay"
     ></iframe>
 
-    <!--
-      Transparent interceptor overlay — positioned over the form's Next button.
-      Clicks pass through (pointer-events: none on the div itself; we listen
-      in the capture phase on the wrapper instead).
-    -->
-    <div id="next-interceptor" aria-hidden="true"></div>
+    <!-- Transparent button floating over iframe's Next button -->
+    <button id="float-next" aria-label="Next"></button>
   </div>
 
   <div id="debug-panel"></div>
   <div id="toast"></div>
 
   <script>
-    // ═══════════════════════════════════════════════
-    //  Questions — edit to match your Formbricks form
-    // ═══════════════════════════════════════════════
+    // ── Questions ────────────────────────────────────────────────────────────
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
       "Question 1: What is your full name?",
@@ -265,48 +178,18 @@
       "Thank you for completing the survey. Your responses have been recorded."
     ];
 
-    // ═══════════════════════════════════════════════
-    //  State
-    // ═══════════════════════════════════════════════
-    var currentIndex = 0;
-    var muted        = false;
+    // ── State ────────────────────────────────────────────────────────────────
+    var currentIndex  = 0;
+    var muted         = false;
     var selectedVoice = null;
-    var synth        = window.speechSynthesis;
+    var synth         = window.speechSynthesis;
+    var COOLDOWN_MS   = 800;
+    var lastFiredAt   = 0;
 
-    // Throttle: ignore duplicate intercepts within this many ms
-    var INTERCEPT_COOLDOWN_MS = 800;
-    var lastInterceptAt = 0;
-
-    // ═══════════════════════════════════════════════
-    //  Debug logger
-    // ═══════════════════════════════════════════════
+    // ── Elements ─────────────────────────────────────────────────────────────
     var debugPanel = document.getElementById("debug-panel");
-
-    function log(msg, type) {
-      var line = document.createElement("div");
-      line.className = "log-line " + (type || "info");
-      var ts = new Date().toLocaleTimeString("en-US", { hour12: false });
-      line.textContent = "[" + ts + "] " + msg;
-      debugPanel.appendChild(line);
-      debugPanel.scrollTop = debugPanel.scrollHeight;
-      if (type === "err") debugPanel.classList.add("visible");
-    }
-
-    document.getElementById("btn-debug").addEventListener("click", function() {
-      debugPanel.classList.toggle("visible");
-      // Also toggle the intercept zone outline for visual calibration
-      var el = document.getElementById("next-interceptor");
-      el.style.outline = debugPanel.classList.contains("visible")
-        ? "2px dashed rgba(37,99,235,0.6)"
-        : "";
-      el.style.background = debugPanel.classList.contains("visible")
-        ? "rgba(37,99,235,0.08)"
-        : "";
-    });
-
-    // ═══════════════════════════════════════════════
-    //  UI helpers
-    // ═══════════════════════════════════════════════
+    var floatNext  = document.getElementById("float-next");
+    var iframe     = document.getElementById("survey-frame");
     var statusDot  = document.getElementById("status-dot");
     var statusText = document.getElementById("status-text");
     var waveform   = document.getElementById("waveform");
@@ -314,191 +197,167 @@
     var voiceLabel = document.getElementById("voice-label");
     var toast      = document.getElementById("toast");
 
-    function setStatus(state, text) {
-      statusDot.className = state || "";
-      statusText.textContent = text || "Ready";
-    }
-    function setWave(on) { waveform.classList.toggle("active", on); }
-    function updateCounter() {
-      qCounter.textContent = "Q " + (currentIndex + 1) + " / " + questions.length;
+    // ── Debug ────────────────────────────────────────────────────────────────
+    function log(msg, type) {
+      var line = document.createElement("div");
+      line.className = "log-line " + (type || "info");
+      line.textContent = "[" + new Date().toLocaleTimeString("en-US",{hour12:false}) + "] " + msg;
+      debugPanel.appendChild(line);
+      debugPanel.scrollTop = debugPanel.scrollHeight;
+      if (type === "err") debugPanel.classList.add("visible");
     }
 
+    document.getElementById("btn-debug").addEventListener("click", function() {
+      var on = debugPanel.classList.toggle("visible");
+      floatNext.classList.toggle("dbg", on);
+      log("Debug " + (on ? "ON — blue box = float-next zone" : "OFF"), "info");
+    });
+
+    // ── UI helpers ───────────────────────────────────────────────────────────
+    function setStatus(state, text) { statusDot.className = state||""; statusText.textContent = text||"Ready"; }
+    function setWave(on) { waveform.classList.toggle("active", on); }
+    function updateCounter() { qCounter.textContent = "Q " + (currentIndex+1) + " / " + questions.length; }
     var toastTimer;
     function showToast(msg) {
-      toast.textContent = msg;
-      toast.classList.add("show");
+      toast.textContent = msg; toast.classList.add("show");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(function() { toast.classList.remove("show"); }, 2800);
+      toastTimer = setTimeout(function(){ toast.classList.remove("show"); }, 2800);
     }
 
-    // ═══════════════════════════════════════════════
-    //  Voice selection
-    // ═══════════════════════════════════════════════
-    var PREFERRED_VOICES = [
-      "Samantha", "Karen", "Moira", "Tessa", "Victoria",
-      "Zira", "Microsoft Zira", "Google US English", "en-US"
-    ];
+    // ── Voice ────────────────────────────────────────────────────────────────
+    var PREFERRED_VOICES = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English","en-US"];
 
     function pickBestVoice(voices) {
-      var enUS = voices.filter(function(v) {
-        return v.lang && v.lang.startsWith("en");
-      });
-      log("Available en voices: " + enUS.map(function(v){ return v.name; }).join(", "));
-      for (var i = 0; i < PREFERRED_VOICES.length; i++) {
-        var pref = PREFERRED_VOICES[i];
-        var match = enUS.find(function(v) { return v.name.indexOf(pref) !== -1; });
-        if (match) {
-          log("Selected voice: " + match.name + " (" + match.lang + ")", "ok");
-          return match;
-        }
+      var en = voices.filter(function(v){ return v.lang && v.lang.startsWith("en"); });
+      log("en voices: " + en.map(function(v){ return v.name; }).join(", "));
+      for (var i=0; i<PREFERRED_VOICES.length; i++) {
+        var p = PREFERRED_VOICES[i];
+        var m = en.find(function(v){ return v.name.indexOf(p) !== -1; });
+        if (m) { log("Voice: " + m.name, "ok"); return m; }
       }
-      var fallback = enUS.find(function(v){ return v.lang === "en-US"; }) || enUS[0] || voices[0];
-      if (fallback) log("Fallback voice: " + fallback.name, "ok");
-      return fallback || null;
+      var f = en.find(function(v){ return v.lang==="en-US"; }) || en[0] || voices[0];
+      if (f) log("Fallback: " + f.name, "ok");
+      return f || null;
     }
 
     function loadVoices() {
-      var voices = synth.getVoices();
-      if (voices.length === 0) return;
-      selectedVoice = pickBestVoice(voices);
+      var v = synth.getVoices();
+      if (!v.length) return;
+      selectedVoice = pickBestVoice(v);
       voiceLabel.textContent = selectedVoice ? "🎙 " + selectedVoice.name : "Default voice";
     }
-
-    if (synth.onvoiceschanged !== undefined) { synth.onvoiceschanged = loadVoices; }
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices;
     loadVoices();
 
-    // ═══════════════════════════════════════════════
-    //  Web Speech TTS
-    // ═══════════════════════════════════════════════
+    // ── TTS ──────────────────────────────────────────────────────────────────
     function speak(text) {
       if (muted || !text) return;
       synth.cancel();
       var utt = new SpeechSynthesisUtterance(text);
       if (selectedVoice) utt.voice = selectedVoice;
-      utt.lang  = "en-US";
-      utt.rate  = 0.92;
-      utt.pitch = 1.0;
-      utt.volume = 1.0;
-
-      utt.onstart = function() { setStatus("playing", "Playing…"); setWave(true); log("▶ Speaking: \"" + text.substring(0, 40) + "…\"", "ok"); };
-      utt.onend   = function() { setStatus("", "Ready"); setWave(false); log("■ Done"); };
-      utt.onerror = function(e) {
-        if (e.error === "interrupted" || e.error === "canceled") return;
-        log("Speech error: " + e.error, "err");
-        setStatus("error", "Speech error");
-        setWave(false);
+      utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
+      utt.onstart = function(){ setStatus("playing","Playing…"); setWave(true); log("▶ "+text.substring(0,40)+"…","ok"); };
+      utt.onend   = function(){ setStatus("","Ready"); setWave(false); log("■ Done"); };
+      utt.onerror = function(e){
+        if (e.error==="interrupted"||e.error==="canceled") return;
+        log("Speech error: "+e.error,"err"); setStatus("error","Speech error"); setWave(false);
       };
-
-      setStatus("loading", "Speaking…");
+      setStatus("loading","Speaking…");
       synth.speak(utt);
     }
 
-    function speakCurrent() {
-      updateCounter();
-      log("→ Q" + (currentIndex + 1));
-      speak(questions[currentIndex]);
-    }
+    function speakCurrent() { updateCounter(); log("→ Q"+(currentIndex+1)); speak(questions[currentIndex]); }
 
+    // ── Advance audio ────────────────────────────────────────────────────────
     function advanceQuestion() {
       var now = Date.now();
-      if (now - lastInterceptAt < INTERCEPT_COOLDOWN_MS) {
-        log("Intercept skipped (cooldown)", "info");
-        return;
-      }
-      lastInterceptAt = now;
-
-      if (currentIndex >= questions.length - 1) return;
+      if (now - lastFiredAt < COOLDOWN_MS) { log("Cooldown — skipped","info"); return false; }
+      lastFiredAt = now;
+      if (currentIndex >= questions.length - 1) return false;
       currentIndex++;
       speakCurrent();
-      log("Intercepted form Next → advanced to Q" + (currentIndex + 1), "ok");
+      log("Advanced to Q"+(currentIndex+1),"ok");
+      return true;
     }
 
-    // ═══════════════════════════════════════════════
-    //  Intercept the form's Next button
+    // ── Floating Next button ─────────────────────────────────────────────────
     //
-    //  Strategy: listen on #survey-wrapper in the CAPTURE phase.
-    //  When a mousedown/touchstart lands inside #next-interceptor's bounding
-    //  rect, we advance our audio. The event is NOT stopped so the iframe's
-    //  own button still receives it and the form advances normally.
-    // ═══════════════════════════════════════════════
-    var wrapper     = document.getElementById("survey-wrapper");
-    var interceptor = document.getElementById("next-interceptor");
+    // The key insight: browsers DO allow you to dispatch a synthetic MouseEvent
+    // from the PARENT PAGE onto the IFRAME ELEMENT itself (not into its document).
+    // The browser then forwards that click into the iframe's hit-testing,
+    // which lands on the Formbricks Next button inside.
+    //
+    // Steps:
+    //   1. Advance audio
+    //   2. Hide ourselves (pointer-events:none) so we're not the hit target
+    //   3. Dispatch a new click at the same screen coords on the iframe element
+    //   4. Restore after 50ms
 
-    function isInsideInterceptor(clientX, clientY) {
-      var r = interceptor.getBoundingClientRect();
-      return clientX >= r.left && clientX <= r.right &&
-             clientY >= r.top  && clientY <= r.bottom;
+    function forwardClickToIframe(clientX, clientY) {
+      // Briefly make ourselves invisible to hit-testing
+      floatNext.style.pointerEvents = "none";
+
+      var el = document.elementFromPoint(clientX, clientY);
+      log("Forward target: " + (el ? el.tagName + (el.id ? "#"+el.id : "") : "none"), "info");
+
+      var ev = new MouseEvent("click", {
+        bubbles: true, cancelable: true, view: window,
+        clientX: clientX, clientY: clientY,
+        screenX: clientX, screenY: clientY
+      });
+
+      if (el) el.dispatchEvent(ev);
+
+      setTimeout(function(){ floatNext.style.pointerEvents = ""; }, 50);
     }
 
-    wrapper.addEventListener("mousedown", function(e) {
-      if (isInsideInterceptor(e.clientX, e.clientY)) {
-        advanceQuestion();
-      }
-    }, true /* capture */);
+    floatNext.addEventListener("click", function(e) {
+      advanceQuestion();
+      forwardClickToIframe(e.clientX, e.clientY);
+    });
 
-    wrapper.addEventListener("touchstart", function(e) {
-      var t = e.touches[0];
-      if (t && isInsideInterceptor(t.clientX, t.clientY)) {
-        advanceQuestion();
-      }
-    }, true /* capture */);
+    // Touch: prevent ghost click, then do both actions
+    floatNext.addEventListener("touchend", function(e) {
+      e.preventDefault();
+      var t = e.changedTouches[0];
+      advanceQuestion();
+      forwardClickToIframe(t.clientX, t.clientY);
+    }, { passive: false });
 
-    // ═══════════════════════════════════════════════
-    //  Buttons
-    // ═══════════════════════════════════════════════
+    // ── Other controls ───────────────────────────────────────────────────────
     document.getElementById("btn-replay").addEventListener("click", function() {
       if (muted) { showToast("Unmute first"); return; }
-      log("Replay Q" + (currentIndex + 1));
-      speak(questions[currentIndex]);
-      showToast("↺ Replaying…");
+      speak(questions[currentIndex]); showToast("↺ Replaying…");
     });
 
     document.getElementById("btn-mute").addEventListener("click", function() {
       muted = !muted;
       if (muted) {
-        synth.cancel();
-        this.textContent = "🔇 Unmute";
-        this.classList.add("muted");
-        setStatus("", "Muted");
-        setWave(false);
-        log("Muted");
-        showToast("Audio muted");
+        synth.cancel(); this.textContent="🔇 Unmute"; this.classList.add("muted");
+        setStatus("","Muted"); setWave(false); showToast("Audio muted");
       } else {
-        this.textContent = "🔊 Mute";
-        this.classList.remove("muted");
-        setStatus("", "Ready");
-        log("Unmuted");
-        showToast("Audio on");
+        this.textContent="🔊 Mute"; this.classList.remove("muted");
+        setStatus("","Ready"); showToast("Audio on");
       }
     });
 
-    // Formbricks completion event
+    // Formbricks survey-complete event
     window.addEventListener("message", function(ev) {
       if (ev.origin !== "https://app.formbricks.com") return;
       log("postMessage: " + JSON.stringify(ev.data));
-      if (
-        ev.data === "formbricksSurveyCompleted" ||
-        (ev.data && ev.data.type === "formbricksSurveyCompleted")
-      ) {
-        log("Survey completed!", "ok");
+      if (ev.data==="formbricksSurveyCompleted" || (ev.data && ev.data.type==="formbricksSurveyCompleted")) {
+        log("Survey completed!","ok");
         currentIndex = questions.length - 1;
         speakCurrent();
       }
     });
 
-    // ═══════════════════════════════════════════════
-    //  Init
-    // ═══════════════════════════════════════════════
+    // ── Init ─────────────────────────────────────────────────────────────────
     window.addEventListener("load", function() {
       updateCounter();
-      log("Web Speech API ready | Questions: " + questions.length, "ok");
-      log("Next-button interceptor active", "ok");
-      setTimeout(function() {
-        loadVoices();
-        speakCurrent();
-      }, 1000);
+      log("Ready | "+questions.length+" questions | float-next active","ok");
+      setTimeout(function(){ loadVoices(); speakCurrent(); }, 1000);
     });
   </script>
-
 </body>
 </html>
