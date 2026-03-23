@@ -12,6 +12,7 @@
       --text-primary: #1e293b; --text-muted: #64748b; --accent: #2563eb;
       --btn-bg: #f1f5f9; --btn-border: #cbd5e1; --btn-hover: #e2e8f0;
       --status-ok: #22c55e; --status-err: #ef4444; --status-loading: #f59e0b;
+      --fb-next-bg: #3b4a5a; --fb-next-radius: 8px;
     }
     body { font-family:'DM Sans',sans-serif; background:var(--bg); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
 
@@ -43,46 +44,70 @@
 
     /* ── Survey wrapper ── */
     #survey-wrapper { flex:1; position:relative; overflow:hidden; }
+    iframe { width:100%; height:100%; border:none; display:block; }
 
     /*
-     * THE IFRAME has pointer-events:none by default.
-     * This means ALL clicks land on our parent page, not in the iframe.
-     * Our overlay button catches them, fires audio, then we temporarily
-     * restore pointer-events on the iframe and re-fire the click so the
-     * iframe receives it at the correct coordinates.
+     * ── OUR NEXT BUTTON ────────────────────────────────────────────────────
      *
-     * Rating number clicks also go through this path — when the click is
-     * NOT in our float-next zone, we immediately restore pointer-events
-     * and let it fall through.
-     */
-    #survey-frame {
-      width:100%; height:100%; border:none;
-      pointer-events: none;  /* ← clicks land on parent page, not iframe */
-    }
-
-    /* Full-page transparent click catcher — sits over the entire iframe */
-    #click-catcher {
+     * This is a REAL visible button styled exactly like Formbricks' Next btn.
+     * It sits on top of the iframe — no passthrough needed.
+     * It handles audio AND advances the form by calling formbricksNext().
+     *
+     * formbricksNext() works by:
+     *   1. Hiding this button (pointer-events:none)
+     *   2. Removing the iframe's pointer-events:none
+     *   3. Using elementFromPoint at the button's own center coords
+     *      to find and click whatever is underneath in the iframe
+     *   4. Restoring everything after a full rAF cycle
+     *
+     * POSITION — two modes, toggled by Formbricks question state:
+     *   .pos-left  → welcome screen (Next btn is bottom-left of card)
+     *   .pos-right → all other questions (Next btn is bottom-right)
+     *
+     * Debug mode outlines the button so you can see exact placement.
+     * ───────────────────────────────────────────────────────────────────── */
+    #our-next {
       position: absolute;
-      inset: 0;
-      z-index: 10;
+      z-index: 20;
+
+      /* Match Formbricks button style exactly */
+      background: #3d4f61;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
       cursor: pointer;
-      background: transparent;
+      min-width: 80px;
+
+      /* Smooth position transitions between left/right */
+      transition: left .2s, right .2s, bottom .2s;
+    }
+    #our-next:hover { background: #2e3d4d; }
+    #our-next:active { transform: scale(.97); }
+
+    /*
+     * POS-LEFT: welcome screen — Next button is in the lower-left of card.
+     * Card left edge ≈ viewport-center - 380px, button is ~30px inside.
+     * Vertically: card bottom ≈ 60% from top, button ≈ 40px up from bottom.
+     *
+     * POS-RIGHT: question screens — Next button is lower-right of card.
+     * Card right edge ≈ viewport-center + 380px, button ≈ 30px inside.
+     */
+    #our-next.pos-left {
+      left: calc(50% - 350px);
+      bottom: calc(40% - 10px);
+    }
+    #our-next.pos-right {
+      right: 0;
+      bottom: calc(40% - 10px);
+      /* right-anchored — tracks card's right edge on all viewports */
     }
 
-    /* Visual Next button zone — debug only */
-    #next-zone {
-      position: absolute;
-      /* Position tuning — edit bottom to move up/down, right to move left */
-      right: 0;
-      bottom: calc(35% + 5px);
-      width: 220px;
-      height: 72px;
-      pointer-events: none; /* purely visual */
-      z-index: 11;
-      border: 2px dashed rgba(37,99,235,0);
-      background: transparent;
-    }
-    #next-zone.dbg { border-color: rgba(37,99,235,0.6); background: rgba(37,99,235,0.08); }
+    /* Debug: show outline */
+    #our-next.dbg { outline: 2px dashed rgba(255,200,0,0.8); }
 
     /* ── Debug panel ── */
     #debug-panel { display:none; position:fixed; bottom:0; left:0; right:0; background:#0f172a; color:#94a3b8; font-family:'Courier New',monospace; font-size:11.5px; padding:10px 16px; max-height:160px; overflow-y:auto; z-index:9999; border-top:2px solid #334155; }
@@ -92,7 +117,6 @@
     .log-line.ok   { color:#4ade80; }
     .log-line.info { color:#60a5fa; }
 
-    /* ── Toast ── */
     #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1e293b; color:#fff; font-size:13px; font-weight:500; padding:10px 20px; border-radius:10px; z-index:9998; pointer-events:none; transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s; opacity:0; white-space:nowrap; }
     #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
   </style>
@@ -117,11 +141,11 @@
       allow="autoplay"
     ></iframe>
 
-    <!-- Catches ALL clicks that would go to the iframe -->
-    <div id="click-catcher"></div>
-
-    <!-- Visual debug zone only (pointer-events:none) -->
-    <div id="next-zone"></div>
+    <!--
+      Our visible Next button — styled like Formbricks.
+      Starts pos-left for the welcome screen, switches to pos-right after Q1.
+    -->
+    <button id="our-next" class="pos-left">Next</button>
   </div>
 
   <div id="debug-panel"></div>
@@ -129,11 +153,11 @@
 
   <script>
     var questions = [
-      "Welcome to the survey. Please click Next to begin.",
-      "Question 1: I feel that my values align with the company mission and culture. Please select a number from 1 to 10, where 1 is not aligned and 10 is fully aligned.",
-      "Question 2: I understand how my role contributes to the company's overall strategy. Please select a number from 1 to 10.",
-      "Question 3: I feel supported by my manager in my professional development. Please select a number from 1 to 10.",
-      "Question 4: I would recommend this organization as a great place to work. Please select a number from 1 to 10.",
+      "Welcome. Thanks for providing your feedback — let's go!",
+      "Question 1: I feel that my values align with the company mission and culture. Select 1 to 10.",
+      "Question 2: I understand how my role contributes to the company's overall strategy. Select 1 to 10.",
+      "Question 3: I feel supported by my manager in my professional development. Select 1 to 10.",
+      "Question 4: I would recommend this organization as a great place to work. Select 1 to 10.",
       "Thank you for completing the survey. Your responses have been recorded."
     ];
 
@@ -141,19 +165,18 @@
     var muted         = false;
     var selectedVoice = null;
     var synth         = window.speechSynthesis;
-    var COOLDOWN_MS   = 800;
+    var COOLDOWN_MS   = 1000;
     var lastFiredAt   = 0;
 
-    var iframe       = document.getElementById("survey-frame");
-    var catcher      = document.getElementById("click-catcher");
-    var nextZone     = document.getElementById("next-zone");
-    var debugPanel   = document.getElementById("debug-panel");
-    var statusDot    = document.getElementById("status-dot");
-    var statusText   = document.getElementById("status-text");
-    var waveform     = document.getElementById("waveform");
-    var qCounter     = document.getElementById("q-counter");
-    var voiceLabel   = document.getElementById("voice-label");
-    var toast        = document.getElementById("toast");
+    var iframe      = document.getElementById("survey-frame");
+    var ourNext     = document.getElementById("our-next");
+    var debugPanel  = document.getElementById("debug-panel");
+    var statusDot   = document.getElementById("status-dot");
+    var statusText  = document.getElementById("status-text");
+    var waveform    = document.getElementById("waveform");
+    var qCounter    = document.getElementById("q-counter");
+    var voiceLabel  = document.getElementById("voice-label");
+    var toast       = document.getElementById("toast");
 
     // ── Debug ────────────────────────────────────────────────────────────────
     function log(msg, type) {
@@ -163,10 +186,9 @@
       debugPanel.appendChild(line);
       debugPanel.scrollTop = debugPanel.scrollHeight;
     }
-
     document.getElementById("btn-debug").addEventListener("click", function() {
       var on = debugPanel.classList.toggle("visible");
-      nextZone.classList.toggle("dbg", on);
+      ourNext.classList.toggle("dbg", on);
     });
 
     // ── UI ───────────────────────────────────────────────────────────────────
@@ -175,6 +197,20 @@
     function updateCounter(){ qCounter.textContent="Q "+(currentIndex+1)+" / "+questions.length; }
     var toastTimer;
     function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toast.classList.remove("show"); },2800); }
+
+    // ── Position our Next button to match form's current Next button ─────────
+    // Q0 (welcome) → Next is bottom-LEFT. Q1+ → bottom-RIGHT.
+    function updateButtonPosition() {
+      if (currentIndex === 0) {
+        ourNext.classList.add("pos-left");
+        ourNext.classList.remove("pos-right");
+        log("Button → LEFT (welcome screen)", "info");
+      } else {
+        ourNext.classList.add("pos-right");
+        ourNext.classList.remove("pos-left");
+        log("Button → RIGHT (question screen)", "info");
+      }
+    }
 
     // ── Voices ───────────────────────────────────────────────────────────────
     var PREF = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English"];
@@ -207,63 +243,72 @@
     }
     function speakCurrent(){ updateCounter(); log("→ Q"+(currentIndex+1)); speak(questions[currentIndex]); }
 
-    // ── Advance audio (with cooldown) ─────────────────────────────────────
-    function advanceQuestion(){
-      var now=Date.now();
-      if(now-lastFiredAt<COOLDOWN_MS){ log("Cooldown","info"); return false; }
-      lastFiredAt=now;
-      if(currentIndex>=questions.length-1)return false;
-      currentIndex++; speakCurrent();
-      log("→ Q"+(currentIndex+1),"ok"); return true;
+    // ── Click our Next button: advance audio + click through to form ─────────
+    //
+    // Cross-origin passthrough strategy:
+    //   1. Get the center coords of our visible button
+    //   2. Hide our button (pointer-events:none) — iframe is now on top
+    //   3. Force a style recalculation with getBoundingClientRect()
+    //   4. Use elementFromPoint — now returns the iframe
+    //   5. Dispatch mousedown+mouseup+click on the iframe element
+    //      The browser routes these into the iframe's rendering engine
+    //   6. Restore after 200ms (enough for browser to process)
+    //
+    function formbricksNext() {
+      // Get center of our button BEFORE hiding it
+      var r = ourNext.getBoundingClientRect();
+      var cx = r.left + r.width / 2;
+      var cy = r.top  + r.height / 2;
+
+      log("Clicking through at "+Math.round(cx)+","+Math.round(cy), "info");
+
+      // Hide our button so elementFromPoint hits the iframe
+      ourNext.style.pointerEvents = "none";
+      ourNext.style.visibility    = "hidden";
+
+      // rAF ensures the browser has re-painted before we query elementFromPoint
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          var target = document.elementFromPoint(cx, cy);
+          log("Target: " + (target ? target.tagName+(target.id?"#"+target.id:"") : "none"), "info");
+
+          if (target) {
+            var opts = { bubbles:true, cancelable:true, view:window, clientX:cx, clientY:cy };
+            target.dispatchEvent(new MouseEvent("mousedown", opts));
+            target.dispatchEvent(new MouseEvent("mouseup",   opts));
+            target.dispatchEvent(new MouseEvent("click",     opts));
+          }
+
+          // Restore after giving browser time to process the events
+          setTimeout(function() {
+            ourNext.style.pointerEvents = "";
+            ourNext.style.visibility    = "";
+          }, 200);
+        });
+      });
     }
 
-    // ── Is a point inside the Next zone? ────────────────────────────────────
-    function inNextZone(x, y){
-      var r = nextZone.getBoundingClientRect();
-      return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
-    }
+    ourNext.addEventListener("click", function() {
+      var now = Date.now();
+      if (now - lastFiredAt < COOLDOWN_MS) { log("Cooldown","info"); return; }
+      lastFiredAt = now;
 
-    // ── Pass a click through to the iframe ──────────────────────────────────
-    // We temporarily restore pointer-events on the iframe, dispatch a new
-    // MouseEvent at the same coordinates (the browser routes it into the
-    // iframe's rendering engine), then remove pointer-events again.
-    function passThroughToIframe(clientX, clientY, isTouch){
-      iframe.style.pointerEvents = "auto";
-      catcher.style.pointerEvents = "none";
+      // Advance audio
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        speakCurrent();
+        updateButtonPosition();
+      }
 
-      setTimeout(function(){
-        var target = document.elementFromPoint(clientX, clientY);
-        log("Pass-through → "+(target?target.tagName+(target.id?"#"+target.id:""):"?"), "info");
-
-        if(target){
-          target.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
-          target.dispatchEvent(new MouseEvent("mouseup",  {bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
-          target.dispatchEvent(new MouseEvent("click",    {bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
-        }
-
-        // Restore after the events are dispatched
-        setTimeout(function(){
-          iframe.style.pointerEvents = "none";
-          catcher.style.pointerEvents = "";
-        }, 100);
-      }, 10);
-    }
-
-    // ── Click catcher — handles ALL clicks over the iframe ──────────────────
-    catcher.addEventListener("mousedown", function(e){
-      var isNext = inNextZone(e.clientX, e.clientY);
-      log((isNext?"[NEXT] ":"[FORM] ")+"click at "+Math.round(e.clientX)+","+Math.round(e.clientY), isNext?"ok":"info");
-      if(isNext) advanceQuestion();
-      passThroughToIframe(e.clientX, e.clientY, false);
+      // Click through to Formbricks
+      formbricksNext();
     });
 
-    catcher.addEventListener("touchstart", function(e){
-      var t=e.touches[0];
-      var isNext = inNextZone(t.clientX, t.clientY);
-      log((isNext?"[NEXT] ":"[FORM] ")+"touch at "+Math.round(t.clientX)+","+Math.round(t.clientY), isNext?"ok":"info");
-      if(isNext) advanceQuestion();
-      passThroughToIframe(t.clientX, t.clientY, true);
-    }, {passive:true});
+    // Touch support
+    ourNext.addEventListener("touchend", function(e) {
+      e.preventDefault();
+      ourNext.click();
+    }, { passive: false });
 
     // ── Other controls ───────────────────────────────────────────────────────
     document.getElementById("btn-replay").addEventListener("click", function(){
@@ -280,13 +325,15 @@
       if(ev.origin!=="https://app.formbricks.com")return;
       if(ev.data==="formbricksSurveyCompleted"||(ev.data&&ev.data.type==="formbricksSurveyCompleted")){
         log("Survey complete!","ok"); currentIndex=questions.length-1; speakCurrent();
+        ourNext.style.display = "none"; // hide after completion
       }
     });
 
     // ── Init ─────────────────────────────────────────────────────────────────
     window.addEventListener("load", function(){
       updateCounter();
-      log("Ready — click-catcher active over full iframe","ok");
+      updateButtonPosition();
+      log("Ready","ok");
       setTimeout(function(){ loadVoices(); speakCurrent(); }, 1000);
     });
   </script>
