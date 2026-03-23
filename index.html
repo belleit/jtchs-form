@@ -154,23 +154,27 @@
     #next-interceptor {
       position: absolute;
 
-      /* Formbricks card is centered; Next btn is ~120px wide, ~44px tall,
-         sitting ~40px from card bottom edge, card bottom ~30% from viewport bottom */
-      right: calc(50% - 340px); /* right side of centered ~680px card */
-      bottom: calc(30% - 10px);
-      width: 130px;
-      height: 54px;
+      /*
+       * Sits over the Formbricks "Next" button only.
+       * The button is in the bottom-right of the card. Card bottom edge is
+       * roughly at 62% from the top of the iframe (varies with viewport height).
+       * We anchor from the bottom of the wrapper and go up just enough to cover
+       * the button + generous click margin, without overlapping survey content.
+       *
+       * right: aligns with the card's right edge (~330px from center)
+       * bottom: sits just above the card footer ("Powered by Formbricks")
+       * width/height: generously sized but still well below the rating row
+       */
+      right: calc(50% - 360px);
+      bottom: calc(38% - 10px);
+      width: 160px;   /* wider = more margin L/R */
+      height: 80px;   /* taller = more margin top/bottom, still below ratings */
 
-      /* Invisible but present */
       background: transparent;
       z-index: 10;
       cursor: pointer;
-
-      /* Visual debug aid — remove or set to 0 when satisfied */
       outline: 2px dashed rgba(37,99,235,0.0);
     }
-    /* Un-comment below to visualize the intercept zone while calibrating: */
-    /* #next-interceptor { outline: 2px dashed rgba(37,99,235,0.5); background: rgba(37,99,235,0.08); } */
 
     #debug-panel {
       display: none;
