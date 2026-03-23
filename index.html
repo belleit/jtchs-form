@@ -95,6 +95,19 @@
 
     .spacer { flex: 1; }
 
+    #voice-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     #q-counter {
       font-size: 12px; font-weight: 600; color: var(--text-muted);
       background: var(--btn-bg); border: 1px solid var(--btn-border);
@@ -146,7 +159,7 @@
       max-height: 160px;
       overflow-y: auto;
       z-index: 9999;
-      border-top: 2px solid #ef4444;
+      border-top: 2px solid #334155;
     }
     #debug-panel.visible { display: block; }
     .log-line { margin: 2px 0; line-height: 1.5; }
@@ -184,6 +197,7 @@
 
     <div class="spacer"></div>
 
+    <div id="voice-label">Loading voices…</div>
     <div id="q-counter">Q 1 / 6</div>
     <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
     <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
@@ -204,19 +218,8 @@
 
   <script>
     // ═══════════════════════════════════════════════
-    //  CONFIG
+    //  Questions — edit to match your Formbricks form
     // ═══════════════════════════════════════════════
-    var GOOGLE_API_KEY  = "AQ.Ab8RN6J_cUSUU0Or3Mmt3q0JgYu48hwMsApbwU80VDRRPuvEtQ"; // ← replace with your key
-    var GCP_PROJECT     = "sharprpm";
-    var GCP_REGION      = "us-central1";
-
-    // Vertex AI TTS endpoint
-    var VERTEX_TTS_URL  = "https://" + GCP_REGION + "-aiplatform.googleapis.com/v1/projects/"
-                        + GCP_PROJECT + "/locations/" + GCP_REGION + "/publishers/google/models/text-to-speech:predict";
-
-    var VOICE_NAME      = "en-US-Neural2-F";   // natural female Neural2
-    var LANGUAGE_CODE   = "en-US";
-
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
       "Question 1: What is your full name?",
@@ -231,8 +234,8 @@
     // ═══════════════════════════════════════════════
     var currentIndex = 0;
     var muted        = false;
-    var currentAudio = null;
-    var audioCache   = {};
+    var selectedVoice = null;
+    var synth        = window.speechSynthesis;
 
     // ═══════════════════════════════════════════════
     //  Debug logger
@@ -260,6 +263,7 @@
     var statusText = document.getElementById("status-text");
     var waveform   = document.getElementById("waveform");
     var qCounter   = document.getElementById("q-counter");
+    var voiceLabel = document.getElementById("voice-label");
     var toast      = document.getElementById("toast");
     var btnNext    = document.getElementById("btn-next");
 
@@ -282,121 +286,108 @@
     }
 
     // ═══════════════════════════════════════════════
-    //  Vertex AI TTS
+    //  Voice selection — pick best available female
+    //  en-US voice, preferring enhanced/natural ones
     // ═══════════════════════════════════════════════
-    function fetchAndPlay(text) {
-      if (muted) return;
-      stopAudio();
 
-      if (audioCache[text]) {
-        log("Cache hit — playing instantly", "ok");
-        playBase64(audioCache[text]);
-        return;
+    // Preferred voice names in priority order
+    var PREFERRED_VOICES = [
+      "Samantha",           // macOS/iOS — very natural
+      "Karen",              // macOS Australian
+      "Moira",              // macOS Irish
+      "Tessa",              // macOS South African
+      "Victoria",           // macOS
+      "Zira",               // Windows — decent
+      "Microsoft Zira",
+      "Google US English",  // Chrome on Android/desktop
+      "en-US"               // fallback: any en-US
+    ];
+
+    function pickBestVoice(voices) {
+      var enUS = voices.filter(function(v) {
+        return v.lang && v.lang.startsWith("en");
+      });
+
+      log("Available en voices: " + enUS.map(function(v){ return v.name; }).join(", "));
+
+      // Try preferred list first
+      for (var i = 0; i < PREFERRED_VOICES.length; i++) {
+        var pref = PREFERRED_VOICES[i];
+        var match = enUS.find(function(v) {
+          return v.name.indexOf(pref) !== -1;
+        });
+        if (match) {
+          log("Selected voice: " + match.name + " (" + match.lang + ")", "ok");
+          return match;
+        }
       }
 
-      setStatus("loading", "Generating…");
-      log("POST → Vertex AI TTS (" + GCP_PROJECT + "/" + GCP_REGION + ")");
-      log("Voice: " + VOICE_NAME + " | Text: \"" + text.substring(0, 50) + "\"");
+      // Fallback: first en-US, then first en, then first available
+      var fallback = enUS.find(function(v){ return v.lang === "en-US"; })
+                  || enUS[0]
+                  || voices[0];
 
-      fetch(VERTEX_TTS_URL + "?key=" + GOOGLE_API_KEY, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instances: [{
-            text: text
-          }],
-          parameters: {
-            voiceSelectionParams: {
-              languageCode: LANGUAGE_CODE,
-              name: VOICE_NAME,
-              ssmlGender: "FEMALE"
-            },
-            audioConfig: {
-              audioEncoding: "MP3",
-              speakingRate: 0.95,
-              pitch: 0
-            }
-          }
-        })
-      })
-      .then(function(res) {
-        log("HTTP " + res.status + " " + res.statusText, res.ok ? "ok" : "err");
-        return res.json().then(function(data) {
-          if (!res.ok) {
-            var msg = (data.error && data.error.message) ? data.error.message : JSON.stringify(data).substring(0, 200);
-            throw new Error("HTTP " + res.status + ": " + msg);
-          }
-          return data;
-        });
-      })
-      .then(function(data) {
-        // Vertex AI returns predictions array
-        var b64 = null;
-        if (data.predictions && data.predictions[0]) {
-          b64 = data.predictions[0].audioContent || data.predictions[0];
-        } else if (data.audioContent) {
-          b64 = data.audioContent;
-        }
-        if (!b64) {
-          log("Full response: " + JSON.stringify(data).substring(0, 300), "err");
-          throw new Error("Could not find audioContent in response — check debug log");
-        }
-        log("Audio received (" + Math.round(b64.length * 0.75 / 1024) + " KB)", "ok");
-        audioCache[text] = b64;
-        playBase64(b64);
-      })
-      .catch(function(err) {
-        log("FAILED: " + err.message, "err");
-        setStatus("error", "Error — see Debug");
-        setWave(false);
-        showToast("⚠️ Audio error — click 🐛 Debug");
-      });
+      if (fallback) log("Fallback voice: " + fallback.name, "ok");
+      return fallback || null;
     }
 
-    function playBase64(b64) {
-      var audio = new Audio("data:audio/mp3;base64," + b64);
-      currentAudio = audio;
+    function loadVoices() {
+      var voices = synth.getVoices();
+      if (voices.length === 0) return; // not ready yet
+      selectedVoice = pickBestVoice(voices);
+      voiceLabel.textContent = selectedVoice ? "🎙 " + selectedVoice.name : "Default voice";
+    }
 
-      audio.onplay = function() {
+    // Chrome loads voices async
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = loadVoices;
+    }
+    loadVoices(); // also try immediately (Firefox/Safari)
+
+    // ═══════════════════════════════════════════════
+    //  Web Speech TTS
+    // ═══════════════════════════════════════════════
+    function speak(text) {
+      if (muted || !text) return;
+
+      synth.cancel(); // stop anything currently speaking
+
+      var utt = new SpeechSynthesisUtterance(text);
+
+      if (selectedVoice) utt.voice = selectedVoice;
+      utt.lang  = "en-US";
+      utt.rate  = 0.92;   // slightly slower = clearer
+      utt.pitch = 1.0;
+      utt.volume = 1.0;
+
+      utt.onstart = function() {
         setStatus("playing", "Playing…");
         setWave(true);
-        log("▶ Playback started", "ok");
+        log("▶ Speaking: \"" + text.substring(0, 40) + "…\"", "ok");
       };
-      audio.onended = function() {
+
+      utt.onend = function() {
         setStatus("", "Ready");
         setWave(false);
-        log("■ Playback ended");
+        log("■ Done");
       };
-      audio.onerror = function() {
-        log("Audio element playback error", "err");
-        setStatus("error", "Playback error");
+
+      utt.onerror = function(e) {
+        // "interrupted" fires on synth.cancel() — not a real error
+        if (e.error === "interrupted" || e.error === "canceled") return;
+        log("Speech error: " + e.error, "err");
+        setStatus("error", "Speech error");
         setWave(false);
       };
-      audio.play().catch(function(err) {
-        log("Autoplay blocked: " + err.message, "err");
-        setStatus("", "Tap to play");
-        showToast("👆 Click anywhere on the page, then hit Replay");
-        var retry = function() {
-          document.removeEventListener("click", retry);
-          if (currentAudio) currentAudio.play().catch(function(){});
-        };
-        document.addEventListener("click", retry);
-      });
-    }
 
-    function stopAudio() {
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.onended = null;
-        currentAudio = null;
-      }
-      setWave(false);
+      setStatus("loading", "Speaking…");
+      synth.speak(utt);
     }
 
     function speakCurrent() {
       updateCounter();
-      log("→ Q" + (currentIndex + 1) + ": \"" + questions[currentIndex].substring(0, 50) + "\"");
-      fetchAndPlay(questions[currentIndex]);
+      log("→ Q" + (currentIndex + 1));
+      speak(questions[currentIndex]);
     }
 
     // ═══════════════════════════════════════════════
@@ -411,17 +402,18 @@
     document.getElementById("btn-replay").addEventListener("click", function() {
       if (muted) { showToast("Unmute first"); return; }
       log("Replay Q" + (currentIndex + 1));
-      fetchAndPlay(questions[currentIndex]);
+      speak(questions[currentIndex]);
       showToast("↺ Replaying…");
     });
 
     document.getElementById("btn-mute").addEventListener("click", function() {
       muted = !muted;
       if (muted) {
-        stopAudio();
+        synth.cancel();
         this.textContent = "🔇 Unmute";
         this.classList.add("muted");
         setStatus("", "Muted");
+        setWave(false);
         log("Muted");
         showToast("Audio muted");
       } else {
@@ -452,9 +444,13 @@
     // ═══════════════════════════════════════════════
     window.addEventListener("load", function() {
       updateCounter();
-      log("Loaded. Vertex AI TTS | Project: " + GCP_PROJECT + " | Region: " + GCP_REGION, "ok");
-      log("Voice: " + VOICE_NAME + " | Questions: " + questions.length, "ok");
-      setTimeout(speakCurrent, 1500);
+      log("Web Speech API ready | Questions: " + questions.length, "ok");
+
+      // Give voices a moment to load, then speak
+      setTimeout(function() {
+        loadVoices(); // final attempt to grab voices
+        speakCurrent();
+      }, 1000);
     });
   </script>
 
