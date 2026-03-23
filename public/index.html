@@ -15,7 +15,6 @@
       --text-primary: #1e293b;
       --text-muted: #64748b;
       --accent: #2563eb;
-      --accent-hover: #1d4ed8;
       --btn-bg: #f1f5f9;
       --btn-border: #cbd5e1;
       --btn-hover: #e2e8f0;
@@ -33,28 +32,25 @@
       flex-direction: column;
     }
 
-    /* ── Top bar ── */
     #tts-controls {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 0 20px;
-      height: 52px;
+      padding: 0 16px;
+      height: 54px;
       flex-shrink: 0;
       background: var(--bar-bg);
       border-bottom: 1px solid var(--bar-border);
     }
 
-    #tts-controls .label {
-      font-size: 12px;
+    .bar-label {
+      font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-right: 4px;
     }
 
-    /* Status pill */
     #status-pill {
       display: flex;
       align-items: center;
@@ -65,152 +61,117 @@
       padding: 4px 12px;
       font-size: 12px;
       color: var(--text-muted);
-      min-width: 120px;
-      transition: all 0.2s;
+      min-width: 130px;
     }
 
     #status-dot {
-      width: 7px;
-      height: 7px;
+      width: 7px; height: 7px;
       border-radius: 50%;
-      background: var(--text-muted);
+      background: #94a3b8;
       flex-shrink: 0;
       transition: background 0.3s;
     }
-
     #status-dot.loading { background: var(--status-loading); animation: pulse 1s infinite; }
     #status-dot.playing { background: var(--status-ok); }
     #status-dot.error   { background: var(--status-err); }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
-    }
-
-    /* Waveform bars (visible only when playing) */
     #waveform {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      height: 18px;
-      opacity: 0;
-      transition: opacity 0.3s;
+      display: flex; align-items: center; gap: 2px; height: 18px;
+      opacity: 0; transition: opacity 0.3s;
     }
     #waveform.active { opacity: 1; }
     #waveform span {
-      display: block;
-      width: 3px;
-      border-radius: 2px;
+      display: block; width: 3px; border-radius: 2px;
       background: var(--accent);
       animation: wave 0.8s ease-in-out infinite;
     }
-    #waveform span:nth-child(1) { height: 6px;  animation-delay: 0s; }
-    #waveform span:nth-child(2) { height: 14px; animation-delay: 0.1s; }
-    #waveform span:nth-child(3) { height: 10px; animation-delay: 0.2s; }
-    #waveform span:nth-child(4) { height: 16px; animation-delay: 0.15s; }
-    #waveform span:nth-child(5) { height: 8px;  animation-delay: 0.05s; }
+    #waveform span:nth-child(1){height:6px;  animation-delay:0s}
+    #waveform span:nth-child(2){height:14px; animation-delay:.1s}
+    #waveform span:nth-child(3){height:10px; animation-delay:.2s}
+    #waveform span:nth-child(4){height:16px; animation-delay:.15s}
+    #waveform span:nth-child(5){height:8px;  animation-delay:.05s}
+    @keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
 
-    @keyframes wave {
-      0%, 100% { transform: scaleY(1); }
-      50%       { transform: scaleY(0.4); }
-    }
-
-    /* Spacer */
     .spacer { flex: 1; }
 
-    /* Control buttons */
+    #q-counter {
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      background: var(--btn-bg); border: 1px solid var(--btn-border);
+      border-radius: 8px; padding: 5px 12px;
+    }
+
     .ctrl-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: 8px;
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      display: flex; align-items: center; gap: 6px;
+      background: var(--btn-bg); border: 1px solid var(--btn-border);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+      color: var(--text-primary); cursor: pointer;
+      transition: background .15s, border-color .15s, transform .1s;
       user-select: none;
     }
-
     .ctrl-btn:hover { background: var(--btn-hover); border-color: #94a3b8; }
-    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn:active { transform: scale(.97); }
+    .ctrl-btn.muted { background:#fef2f2; border-color:#fca5a5; color:var(--status-err); }
 
-    .ctrl-btn.muted {
-      background: #fef2f2;
-      border-color: #fca5a5;
-      color: var(--status-err);
-    }
-
-    /* Progress indicator */
-    #q-counter {
-      font-size: 12px;
+    #btn-next {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
       font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 0.04em;
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: 8px;
-      padding: 5px 12px;
+    }
+    #btn-next:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    #btn-next:disabled {
+      background: #94a3b8; border-color: #94a3b8;
+      cursor: not-allowed; transform: none; opacity: 0.7;
     }
 
-    /* ── Survey wrapper ── */
     #survey-wrapper {
       flex: 1;
       position: relative;
       overflow: hidden;
     }
 
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
+    iframe { width: 100%; height: 100%; border: none; }
 
-    /* Invisible overlay button — sits exactly over the Formbricks Next button */
-    #overlay-next {
-      position: absolute;
-      bottom: 48px;
-      right: 48px;
-      width: 120px;
-      height: 48px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      z-index: 999;
+    #debug-panel {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #0f172a;
+      color: #94a3b8;
+      font-family: 'Courier New', monospace;
+      font-size: 11.5px;
+      padding: 10px 16px;
+      max-height: 160px;
+      overflow-y: auto;
+      z-index: 9999;
+      border-top: 2px solid #ef4444;
     }
+    #debug-panel.visible { display: block; }
+    .log-line { margin: 2px 0; line-height: 1.5; }
+    .log-line.err  { color: #f87171; }
+    .log-line.ok   { color: #4ade80; }
+    .log-line.info { color: #60a5fa; }
 
-    /* Toast notification */
     #toast {
       position: fixed;
-      bottom: 24px;
-      left: 50%;
+      bottom: 24px; left: 50%;
       transform: translateX(-50%) translateY(80px);
-      background: #1e293b;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 10px 20px;
-      border-radius: 10px;
-      z-index: 9999;
-      pointer-events: none;
-      transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.3s;
-      opacity: 0;
-      white-space: nowrap;
+      background: #1e293b; color: #fff;
+      font-size: 13px; font-weight: 500;
+      padding: 10px 20px; border-radius: 10px;
+      z-index: 9998; pointer-events: none;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+      opacity: 0; white-space: nowrap;
     }
-    #toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   </style>
 </head>
 <body>
 
-  <!-- ── Control Bar ── -->
   <div id="tts-controls">
-    <span class="label">🔊 Audio</span>
+    <span class="bar-label">🔊 Audio</span>
 
     <div id="status-pill">
       <span id="status-dot"></span>
@@ -224,36 +185,34 @@
     <div class="spacer"></div>
 
     <div id="q-counter">Q 1 / 6</div>
-
-    <button class="ctrl-btn" id="btn-replay">
-      ↺ Replay
-    </button>
-
-    <button class="ctrl-btn" id="btn-mute">
-      🔊 Mute
-    </button>
+    <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
+    <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
+    <button class="ctrl-btn" id="btn-debug">🐛 Debug</button>
+    <button class="ctrl-btn" id="btn-next">Next →</button>
   </div>
 
-  <!-- ── Survey iframe ── -->
   <div id="survey-wrapper">
     <iframe
       id="survey-frame"
       src="https://app.formbricks.com/s/cmmtnwmbjax13qn01tl8lpylv"
       allow="autoplay"
     ></iframe>
-
-    <!-- Transparent overlay — sits on top of Formbricks "Next" button -->
-    <button id="overlay-next" aria-label="Next question"></button>
   </div>
 
+  <div id="debug-panel"></div>
   <div id="toast"></div>
 
   <script>
-    // ─────────────────────────────────────────────
-    //  CONFIG — fill these in
-    // ─────────────────────────────────────────────
-    var ELEVENLABS_API_KEY = "sk_146a347dd5d57f2bb08770d338bb216da5bd7be3da67ab90";
-    var ELEVENLABS_VOICE_ID = "BuaKXS4Sv1Mccaw3flfU"; // default: Bella — swap to your preferred voice ID
+    // ═══════════════════════════════════════════════
+    //  CONFIG
+    // ═══════════════════════════════════════════════
+    var GOOGLE_API_KEY = "AIzaSyAQ.Ab8RN6KFN8sus5AF8wgO5atM1RA4f0iORm3QB3kMcbLoZc4vIA";
+
+    var GOOGLE_VOICE = {
+      languageCode: "en-US",
+      name: "en-US-Neural2-F",   // Natural female Neural2 voice
+      ssmlGender: "FEMALE"
+    };
 
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
@@ -264,34 +223,53 @@
       "Thank you for completing the survey. Your responses have been recorded."
     ];
 
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
     //  State
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
     var currentIndex = 0;
-    var muted = false;
+    var muted        = false;
     var currentAudio = null;
-    var audioCache = {}; // cache blobs so replay is instant
+    var audioCache   = {};  // text -> base64 string
 
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
+    //  Debug logger
+    // ═══════════════════════════════════════════════
+    var debugPanel = document.getElementById("debug-panel");
+
+    function log(msg, type) {
+      var line = document.createElement("div");
+      line.className = "log-line " + (type || "info");
+      var ts = new Date().toLocaleTimeString("en-US", { hour12: false });
+      line.textContent = "[" + ts + "] " + msg;
+      debugPanel.appendChild(line);
+      debugPanel.scrollTop = debugPanel.scrollHeight;
+      if (type === "err") debugPanel.classList.add("visible");
+    }
+
+    document.getElementById("btn-debug").addEventListener("click", function() {
+      debugPanel.classList.toggle("visible");
+    });
+
+    // ═══════════════════════════════════════════════
     //  UI helpers
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
     var statusDot  = document.getElementById("status-dot");
     var statusText = document.getElementById("status-text");
     var waveform   = document.getElementById("waveform");
     var qCounter   = document.getElementById("q-counter");
     var toast      = document.getElementById("toast");
+    var btnNext    = document.getElementById("btn-next");
 
     function setStatus(state, text) {
       statusDot.className = state || "";
       statusText.textContent = text || "Ready";
     }
 
-    function setWave(active) {
-      waveform.classList.toggle("active", active);
-    }
+    function setWave(on) { waveform.classList.toggle("active", on); }
 
     function updateCounter() {
       qCounter.textContent = "Q " + (currentIndex + 1) + " / " + questions.length;
+      btnNext.disabled = (currentIndex >= questions.length - 1);
     }
 
     var toastTimer;
@@ -299,84 +277,93 @@
       toast.textContent = msg;
       toast.classList.add("show");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(function() { toast.classList.remove("show"); }, 2500);
+      toastTimer = setTimeout(function() { toast.classList.remove("show"); }, 2800);
     }
 
-    // ─────────────────────────────────────────────
-    //  ElevenLabs TTS
-    // ─────────────────────────────────────────────
-    function fetchAndPlay(text, onDone) {
+    // ═══════════════════════════════════════════════
+    //  Google Cloud TTS
+    // ═══════════════════════════════════════════════
+    function fetchAndPlay(text) {
       if (muted) return;
-
-      // Stop any current audio
       stopAudio();
 
-      // Use cache if available
+      // Instant replay from cache
       if (audioCache[text]) {
-        playBlob(audioCache[text], onDone);
+        log("Cache hit — playing instantly", "ok");
+        playBase64(audioCache[text]);
         return;
       }
 
       setStatus("loading", "Generating…");
+      log("POST → Google Cloud TTS, voice=" + GOOGLE_VOICE.name);
+      log("Text: \"" + text.substring(0, 60) + (text.length > 60 ? "…" : "") + "\"");
 
-      fetch("https://api.elevenlabs.io/v1/text-to-speech/" + ELEVENLABS_VOICE_ID, {
+      fetch("https://texttospeech.googleapis.com/v1/text:synthesize?key=" + GOOGLE_API_KEY, {
         method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
-          "Accept": "audio/mpeg"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: text,
-          model_id: "eleven_turbo_v2",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
+          input: { text: text },
+          voice: GOOGLE_VOICE,
+          audioConfig: {
+            audioEncoding: "MP3",
+            speakingRate: 0.95,
+            pitch: 0
           }
         })
       })
       .then(function(res) {
-        if (!res.ok) throw new Error("ElevenLabs API error: " + res.status);
-        return res.blob();
+        log("HTTP " + res.status + " " + res.statusText, res.ok ? "ok" : "err");
+        if (!res.ok) {
+          return res.text().then(function(body) {
+            throw new Error("HTTP " + res.status + ": " + body.substring(0, 300));
+          });
+        }
+        return res.json();
       })
-      .then(function(blob) {
-        audioCache[text] = blob;
-        playBlob(blob, onDone);
+      .then(function(data) {
+        if (!data.audioContent) {
+          throw new Error("No audioContent in response — " + JSON.stringify(data).substring(0, 200));
+        }
+        log("Audio received (" + Math.round(data.audioContent.length * 0.75 / 1024) + " KB)", "ok");
+        audioCache[text] = data.audioContent;
+        playBase64(data.audioContent);
       })
       .catch(function(err) {
-        setStatus("error", "Error");
+        log("FAILED: " + err.message, "err");
+        setStatus("error", "Error — see Debug");
         setWave(false);
-        showToast("⚠️ Audio failed — check your API key");
-        console.error(err);
+        showToast("⚠️ Audio error — click 🐛 Debug");
       });
     }
 
-    function playBlob(blob, onDone) {
-      var url = URL.createObjectURL(blob);
-      currentAudio = new Audio(url);
+    function playBase64(b64) {
+      var audio = new Audio("data:audio/mp3;base64," + b64);
+      currentAudio = audio;
 
-      currentAudio.onplay = function() {
+      audio.onplay = function() {
         setStatus("playing", "Playing…");
         setWave(true);
+        log("▶ Playback started", "ok");
       };
-
-      currentAudio.onended = function() {
+      audio.onended = function() {
         setStatus("", "Ready");
         setWave(false);
-        URL.revokeObjectURL(url);
-        if (onDone) onDone();
+        log("■ Playback ended");
       };
-
-      currentAudio.onerror = function() {
-        setStatus("error", "Error");
+      audio.onerror = function() {
+        log("Audio element playback error", "err");
+        setStatus("error", "Playback error");
         setWave(false);
       };
-
-      currentAudio.play().catch(function(err) {
-        // Autoplay blocked — show a toast nudge
-        showToast("👆 Tap anywhere to enable audio");
-        setStatus("", "Ready");
-        console.warn("Autoplay blocked:", err);
+      audio.play().catch(function(err) {
+        log("Autoplay blocked: " + err.message, "err");
+        setStatus("", "Tap to play");
+        showToast("👆 Click anywhere on the page, then hit Replay");
+        var retry = function() {
+          document.removeEventListener("click", retry);
+          if (currentAudio) currentAudio.play().catch(function(){});
+        };
+        document.addEventListener("click", retry);
       });
     }
 
@@ -391,19 +378,23 @@
 
     function speakCurrent() {
       updateCounter();
+      log("→ Q" + (currentIndex + 1) + ": \"" + questions[currentIndex].substring(0, 50) + "\"");
       fetchAndPlay(questions[currentIndex]);
     }
 
-    function replayCurrent() {
-      if (muted) return;
-      fetchAndPlay(questions[currentIndex]);
-    }
-
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
     //  Buttons
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
+    btnNext.addEventListener("click", function() {
+      if (currentIndex >= questions.length - 1) return;
+      currentIndex++;
+      speakCurrent();
+    });
+
     document.getElementById("btn-replay").addEventListener("click", function() {
-      replayCurrent();
+      if (muted) { showToast("Unmute first"); return; }
+      log("Replay Q" + (currentIndex + 1));
+      fetchAndPlay(questions[currentIndex]);
       showToast("↺ Replaying…");
     });
 
@@ -414,38 +405,38 @@
         this.textContent = "🔇 Unmute";
         this.classList.add("muted");
         setStatus("", "Muted");
+        log("Muted");
         showToast("Audio muted");
       } else {
         this.textContent = "🔊 Mute";
         this.classList.remove("muted");
         setStatus("", "Ready");
+        log("Unmuted");
         showToast("Audio on");
       }
     });
 
-    // Overlay next button — intercepts the click, advances audio, passes through
-    document.getElementById("overlay-next").addEventListener("click", function() {
-      currentIndex = Math.min(currentIndex + 1, questions.length - 1);
-      speakCurrent();
-    });
-
-    // Survey completion message from Formbricks
-    window.addEventListener("message", function(event) {
-      if (event.origin !== "https://app.formbricks.com") return;
-      if (event.data === "formbricksSurveyCompleted") {
+    // Formbricks completion event
+    window.addEventListener("message", function(ev) {
+      if (ev.origin !== "https://app.formbricks.com") return;
+      log("postMessage: " + JSON.stringify(ev.data));
+      if (
+        ev.data === "formbricksSurveyCompleted" ||
+        (ev.data && ev.data.type === "formbricksSurveyCompleted")
+      ) {
+        log("Survey completed!", "ok");
         currentIndex = questions.length - 1;
         speakCurrent();
       }
     });
 
-    // ─────────────────────────────────────────────
-    //  Init — auto-play first question on load
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════
+    //  Init
+    // ═══════════════════════════════════════════════
     window.addEventListener("load", function() {
       updateCounter();
-      setTimeout(function() {
-        speakCurrent();
-      }, 1200);
+      log("Loaded. Voice: " + GOOGLE_VOICE.name + " | Questions: " + questions.length, "ok");
+      setTimeout(speakCurrent, 1500);
     });
   </script>
 
