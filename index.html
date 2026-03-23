@@ -13,23 +13,12 @@
       --btn-bg: #f1f5f9; --btn-border: #cbd5e1; --btn-hover: #e2e8f0;
       --status-ok: #22c55e; --status-err: #ef4444; --status-loading: #f59e0b;
     }
-    body {
-      font-family: 'DM Sans', sans-serif; background: var(--bg);
-      height: 100vh; overflow: hidden; display: flex; flex-direction: column;
-    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
 
     /* ── Top bar ── */
-    #tts-controls {
-      display: flex; align-items: center; gap: 10px;
-      padding: 0 16px; height: 54px; flex-shrink: 0;
-      background: var(--bar-bg); border-bottom: 1px solid var(--bar-border);
-    }
+    #tts-controls { display:flex; align-items:center; gap:10px; padding:0 16px; height:54px; flex-shrink:0; background:var(--bar-bg); border-bottom:1px solid var(--bar-border); }
     .bar-label { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); }
-    #status-pill {
-      display:flex; align-items:center; gap:6px;
-      background:var(--btn-bg); border:1px solid var(--btn-border);
-      border-radius:20px; padding:4px 12px; font-size:12px; color:var(--text-muted); min-width:130px;
-    }
+    #status-pill { display:flex; align-items:center; gap:6px; background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:20px; padding:4px 12px; font-size:12px; color:var(--text-muted); min-width:130px; }
     #status-dot { width:7px; height:7px; border-radius:50%; background:#94a3b8; flex-shrink:0; transition:background .3s; }
     #status-dot.loading { background:var(--status-loading); animation:pulse 1s infinite; }
     #status-dot.playing { background:var(--status-ok); }
@@ -45,77 +34,58 @@
     #waveform span:nth-child(5){height:8px;animation-delay:.05s}
     @keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
     .spacer { flex:1; }
-    #voice-label {
-      font-size:11px; color:var(--text-muted);
-      background:var(--btn-bg); border:1px solid var(--btn-border);
-      border-radius:8px; padding:5px 10px; max-width:180px;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    #q-counter {
-      font-size:12px; font-weight:600; color:var(--text-muted);
-      background:var(--btn-bg); border:1px solid var(--btn-border);
-      border-radius:8px; padding:5px 12px;
-    }
-    .ctrl-btn {
-      display:flex; align-items:center; gap:6px;
-      background:var(--btn-bg); border:1px solid var(--btn-border);
-      border-radius:8px; padding:6px 14px;
-      font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif;
-      color:var(--text-primary); cursor:pointer;
-      transition:background .15s,border-color .15s,transform .1s; user-select:none;
-    }
+    #voice-label { font-size:11px; color:var(--text-muted); background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:5px 10px; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #q-counter { font-size:12px; font-weight:600; color:var(--text-muted); background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:5px 12px; }
+    .ctrl-btn { display:flex; align-items:center; gap:6px; background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:6px 14px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; color:var(--text-primary); cursor:pointer; transition:background .15s,border-color .15s,transform .1s; user-select:none; }
     .ctrl-btn:hover { background:var(--btn-hover); border-color:#94a3b8; }
     .ctrl-btn:active { transform:scale(.97); }
     .ctrl-btn.muted { background:#fef2f2; border-color:#fca5a5; color:var(--status-err); }
-    #btn-next { display:none; } /* hidden — float-next handles it */
 
     /* ── Survey wrapper ── */
     #survey-wrapper { flex:1; position:relative; overflow:hidden; }
-    iframe { width:100%; height:100%; border:none; }
 
-    /* ── Floating transparent Next button ──────────────────────────────────────
+    /*
+     * THE IFRAME has pointer-events:none by default.
+     * This means ALL clicks land on our parent page, not in the iframe.
+     * Our overlay button catches them, fires audio, then we temporarily
+     * restore pointer-events on the iframe and re-fire the click so the
+     * iframe receives it at the correct coordinates.
      *
-     * A real <button> layered on top of the iframe's Next button.
-     * It is fully transparent — Formbricks button is visible through it.
-     *
-     * On click:
-     *   1. Advances audio question
-     *   2. Sets itself to pointer-events:none for 50ms, dispatches a new
-     *      click at the same coordinates — the browser now hits the iframe's
-     *      Formbricks Next button underneath — then restores pointer-events.
-     *
-     * CALIBRATION (enable Debug to see the blue dashed outline):
-     *   bottom  — move up/down  (increase % = move up)
-     *   right   — move left/right (0 = flush right edge)
-     *   width   — wider hit zone
-     *   height  — taller hit zone
-     * ──────────────────────────────────────────────────────────────────────── */
-    #float-next {
+     * Rating number clicks also go through this path — when the click is
+     * NOT in our float-next zone, we immediately restore pointer-events
+     * and let it fall through.
+     */
+    #survey-frame {
+      width:100%; height:100%; border:none;
+      pointer-events: none;  /* ← clicks land on parent page, not iframe */
+    }
+
+    /* Full-page transparent click catcher — sits over the entire iframe */
+    #click-catcher {
       position: absolute;
-      right: 0;
-      bottom: calc(35% - 50px);
-      width: 220px;
-      height: 90px;
-      background: transparent;
-      border: none;
+      inset: 0;
+      z-index: 10;
       cursor: pointer;
-      z-index: 20;
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
+      background: transparent;
     }
-    #float-next.dbg {
-      background: rgba(37,99,235,0.08);
-      outline: 2px dashed rgba(37,99,235,0.6);
+
+    /* Visual Next button zone — debug only */
+    #next-zone {
+      position: absolute;
+      /* Position tuning — edit bottom to move up/down, right to move left */
+      right: 0;
+      bottom: calc(35% + 5px);
+      width: 220px;
+      height: 72px;
+      pointer-events: none; /* purely visual */
+      z-index: 11;
+      border: 2px dashed rgba(37,99,235,0);
+      background: transparent;
     }
+    #next-zone.dbg { border-color: rgba(37,99,235,0.6); background: rgba(37,99,235,0.08); }
 
     /* ── Debug panel ── */
-    #debug-panel {
-      display:none; position:fixed; bottom:0; left:0; right:0;
-      background:#0f172a; color:#94a3b8;
-      font-family:'Courier New',monospace; font-size:11.5px;
-      padding:10px 16px; max-height:160px; overflow-y:auto;
-      z-index:9999; border-top:2px solid #334155;
-    }
+    #debug-panel { display:none; position:fixed; bottom:0; left:0; right:0; background:#0f172a; color:#94a3b8; font-family:'Courier New',monospace; font-size:11.5px; padding:10px 16px; max-height:160px; overflow-y:auto; z-index:9999; border-top:2px solid #334155; }
     #debug-panel.visible { display:block; }
     .log-line { margin:2px 0; line-height:1.5; }
     .log-line.err  { color:#f87171; }
@@ -123,15 +93,7 @@
     .log-line.info { color:#60a5fa; }
 
     /* ── Toast ── */
-    #toast {
-      position:fixed; bottom:24px; left:50%;
-      transform:translateX(-50%) translateY(80px);
-      background:#1e293b; color:#fff; font-size:13px; font-weight:500;
-      padding:10px 20px; border-radius:10px;
-      z-index:9998; pointer-events:none;
-      transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;
-      opacity:0; white-space:nowrap;
-    }
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1e293b; color:#fff; font-size:13px; font-weight:500; padding:10px 20px; border-radius:10px; z-index:9998; pointer-events:none; transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s; opacity:0; white-space:nowrap; }
     #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
   </style>
 </head>
@@ -139,10 +101,7 @@
 
   <div id="tts-controls">
     <span class="bar-label">🔊 Audio</span>
-    <div id="status-pill">
-      <span id="status-dot"></span>
-      <span id="status-text">Ready</span>
-    </div>
+    <div id="status-pill"><span id="status-dot"></span><span id="status-text">Ready</span></div>
     <div id="waveform"><span></span><span></span><span></span><span></span><span></span></div>
     <div class="spacer"></div>
     <div id="voice-label">Loading voices…</div>
@@ -150,35 +109,34 @@
     <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
     <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
     <button class="ctrl-btn" id="btn-debug">🐛 Debug</button>
-    <button class="ctrl-btn" id="btn-next">Next →</button>
   </div>
 
   <div id="survey-wrapper">
-    <iframe
-      id="survey-frame"
+    <iframe id="survey-frame"
       src="https://app.formbricks.com/s/cmmtnwmbjax13qn01tl8lpylv"
       allow="autoplay"
     ></iframe>
 
-    <!-- Transparent button floating over iframe's Next button -->
-    <button id="float-next" aria-label="Next"></button>
+    <!-- Catches ALL clicks that would go to the iframe -->
+    <div id="click-catcher"></div>
+
+    <!-- Visual debug zone only (pointer-events:none) -->
+    <div id="next-zone"></div>
   </div>
 
   <div id="debug-panel"></div>
   <div id="toast"></div>
 
   <script>
-    // ── Questions ────────────────────────────────────────────────────────────
     var questions = [
       "Welcome to the survey. Please click Next to begin.",
-      "Question 1: What is your full name?",
-      "Question 2: What is your date of birth?",
-      "Question 3: What is your address?",
-      "Question 4: How would you rate your experience? Your options are: Excellent, Good, Fair, or Poor.",
+      "Question 1: I feel that my values align with the company mission and culture. Please select a number from 1 to 10, where 1 is not aligned and 10 is fully aligned.",
+      "Question 2: I understand how my role contributes to the company's overall strategy. Please select a number from 1 to 10.",
+      "Question 3: I feel supported by my manager in my professional development. Please select a number from 1 to 10.",
+      "Question 4: I would recommend this organization as a great place to work. Please select a number from 1 to 10.",
       "Thank you for completing the survey. Your responses have been recorded."
     ];
 
-    // ── State ────────────────────────────────────────────────────────────────
     var currentIndex  = 0;
     var muted         = false;
     var selectedVoice = null;
@@ -186,176 +144,149 @@
     var COOLDOWN_MS   = 800;
     var lastFiredAt   = 0;
 
-    // ── Elements ─────────────────────────────────────────────────────────────
-    var debugPanel = document.getElementById("debug-panel");
-    var floatNext  = document.getElementById("float-next");
-    var iframe     = document.getElementById("survey-frame");
-    var statusDot  = document.getElementById("status-dot");
-    var statusText = document.getElementById("status-text");
-    var waveform   = document.getElementById("waveform");
-    var qCounter   = document.getElementById("q-counter");
-    var voiceLabel = document.getElementById("voice-label");
-    var toast      = document.getElementById("toast");
+    var iframe       = document.getElementById("survey-frame");
+    var catcher      = document.getElementById("click-catcher");
+    var nextZone     = document.getElementById("next-zone");
+    var debugPanel   = document.getElementById("debug-panel");
+    var statusDot    = document.getElementById("status-dot");
+    var statusText   = document.getElementById("status-text");
+    var waveform     = document.getElementById("waveform");
+    var qCounter     = document.getElementById("q-counter");
+    var voiceLabel   = document.getElementById("voice-label");
+    var toast        = document.getElementById("toast");
 
     // ── Debug ────────────────────────────────────────────────────────────────
     function log(msg, type) {
       var line = document.createElement("div");
-      line.className = "log-line " + (type || "info");
-      line.textContent = "[" + new Date().toLocaleTimeString("en-US",{hour12:false}) + "] " + msg;
+      line.className = "log-line " + (type||"info");
+      line.textContent = "["+new Date().toLocaleTimeString("en-US",{hour12:false})+"] "+msg;
       debugPanel.appendChild(line);
       debugPanel.scrollTop = debugPanel.scrollHeight;
-      if (type === "err") debugPanel.classList.add("visible");
     }
 
     document.getElementById("btn-debug").addEventListener("click", function() {
       var on = debugPanel.classList.toggle("visible");
-      floatNext.classList.toggle("dbg", on);
-      log("Debug " + (on ? "ON — blue box = float-next zone" : "OFF"), "info");
+      nextZone.classList.toggle("dbg", on);
     });
 
-    // ── UI helpers ───────────────────────────────────────────────────────────
-    function setStatus(state, text) { statusDot.className = state||""; statusText.textContent = text||"Ready"; }
-    function setWave(on) { waveform.classList.toggle("active", on); }
-    function updateCounter() { qCounter.textContent = "Q " + (currentIndex+1) + " / " + questions.length; }
+    // ── UI ───────────────────────────────────────────────────────────────────
+    function setStatus(s,t){ statusDot.className=s||""; statusText.textContent=t||"Ready"; }
+    function setWave(on){ waveform.classList.toggle("active",on); }
+    function updateCounter(){ qCounter.textContent="Q "+(currentIndex+1)+" / "+questions.length; }
     var toastTimer;
-    function showToast(msg) {
-      toast.textContent = msg; toast.classList.add("show");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(function(){ toast.classList.remove("show"); }, 2800);
-    }
+    function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toast.classList.remove("show"); },2800); }
 
-    // ── Voice ────────────────────────────────────────────────────────────────
-    var PREFERRED_VOICES = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English","en-US"];
-
+    // ── Voices ───────────────────────────────────────────────────────────────
+    var PREF = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English"];
     function pickBestVoice(voices) {
-      var en = voices.filter(function(v){ return v.lang && v.lang.startsWith("en"); });
-      log("en voices: " + en.map(function(v){ return v.name; }).join(", "));
-      for (var i=0; i<PREFERRED_VOICES.length; i++) {
-        var p = PREFERRED_VOICES[i];
-        var m = en.find(function(v){ return v.name.indexOf(p) !== -1; });
-        if (m) { log("Voice: " + m.name, "ok"); return m; }
+      var en = voices.filter(function(v){ return v.lang&&v.lang.startsWith("en"); });
+      for (var i=0;i<PREF.length;i++) {
+        var m = en.find(function(v){ return v.name.indexOf(PREF[i])!==-1; });
+        if (m){ log("Voice: "+m.name,"ok"); return m; }
       }
-      var f = en.find(function(v){ return v.lang==="en-US"; }) || en[0] || voices[0];
-      if (f) log("Fallback: " + f.name, "ok");
-      return f || null;
+      return en.find(function(v){ return v.lang==="en-US"; })||en[0]||voices[0]||null;
     }
-
-    function loadVoices() {
-      var v = synth.getVoices();
-      if (!v.length) return;
-      selectedVoice = pickBestVoice(v);
-      voiceLabel.textContent = selectedVoice ? "🎙 " + selectedVoice.name : "Default voice";
+    function loadVoices(){
+      var v=synth.getVoices(); if(!v.length)return;
+      selectedVoice=pickBestVoice(v);
+      voiceLabel.textContent=selectedVoice?"🎙 "+selectedVoice.name:"Default voice";
     }
-    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices;
+    if(synth.onvoiceschanged!==undefined)synth.onvoiceschanged=loadVoices;
     loadVoices();
 
     // ── TTS ──────────────────────────────────────────────────────────────────
-    function speak(text) {
-      if (muted || !text) return;
-      synth.cancel();
-      var utt = new SpeechSynthesisUtterance(text);
-      if (selectedVoice) utt.voice = selectedVoice;
+    function speak(text){
+      if(muted||!text)return; synth.cancel();
+      var utt=new SpeechSynthesisUtterance(text);
+      if(selectedVoice)utt.voice=selectedVoice;
       utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
-      utt.onstart = function(){ setStatus("playing","Playing…"); setWave(true); log("▶ "+text.substring(0,40)+"…","ok"); };
-      utt.onend   = function(){ setStatus("","Ready"); setWave(false); log("■ Done"); };
-      utt.onerror = function(e){
-        if (e.error==="interrupted"||e.error==="canceled") return;
-        log("Speech error: "+e.error,"err"); setStatus("error","Speech error"); setWave(false);
-      };
-      setStatus("loading","Speaking…");
-      synth.speak(utt);
+      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); };
+      utt.onend=function(){ setStatus("","Ready"); setWave(false); };
+      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); };
+      setStatus("loading","Speaking…"); synth.speak(utt);
+    }
+    function speakCurrent(){ updateCounter(); log("→ Q"+(currentIndex+1)); speak(questions[currentIndex]); }
+
+    // ── Advance audio (with cooldown) ─────────────────────────────────────
+    function advanceQuestion(){
+      var now=Date.now();
+      if(now-lastFiredAt<COOLDOWN_MS){ log("Cooldown","info"); return false; }
+      lastFiredAt=now;
+      if(currentIndex>=questions.length-1)return false;
+      currentIndex++; speakCurrent();
+      log("→ Q"+(currentIndex+1),"ok"); return true;
     }
 
-    function speakCurrent() { updateCounter(); log("→ Q"+(currentIndex+1)); speak(questions[currentIndex]); }
-
-    // ── Advance audio ────────────────────────────────────────────────────────
-    function advanceQuestion() {
-      var now = Date.now();
-      if (now - lastFiredAt < COOLDOWN_MS) { log("Cooldown — skipped","info"); return false; }
-      lastFiredAt = now;
-      if (currentIndex >= questions.length - 1) return false;
-      currentIndex++;
-      speakCurrent();
-      log("Advanced to Q"+(currentIndex+1),"ok");
-      return true;
+    // ── Is a point inside the Next zone? ────────────────────────────────────
+    function inNextZone(x, y){
+      var r = nextZone.getBoundingClientRect();
+      return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
     }
 
-    // ── Floating Next button ─────────────────────────────────────────────────
-    //
-    // The key insight: browsers DO allow you to dispatch a synthetic MouseEvent
-    // from the PARENT PAGE onto the IFRAME ELEMENT itself (not into its document).
-    // The browser then forwards that click into the iframe's hit-testing,
-    // which lands on the Formbricks Next button inside.
-    //
-    // Steps:
-    //   1. Advance audio
-    //   2. Hide ourselves (pointer-events:none) so we're not the hit target
-    //   3. Dispatch a new click at the same screen coords on the iframe element
-    //   4. Restore after 50ms
+    // ── Pass a click through to the iframe ──────────────────────────────────
+    // We temporarily restore pointer-events on the iframe, dispatch a new
+    // MouseEvent at the same coordinates (the browser routes it into the
+    // iframe's rendering engine), then remove pointer-events again.
+    function passThroughToIframe(clientX, clientY, isTouch){
+      iframe.style.pointerEvents = "auto";
+      catcher.style.pointerEvents = "none";
 
-    function forwardClickToIframe(clientX, clientY) {
-      // Briefly make ourselves invisible to hit-testing
-      floatNext.style.pointerEvents = "none";
+      setTimeout(function(){
+        var target = document.elementFromPoint(clientX, clientY);
+        log("Pass-through → "+(target?target.tagName+(target.id?"#"+target.id:""):"?"), "info");
 
-      var el = document.elementFromPoint(clientX, clientY);
-      log("Forward target: " + (el ? el.tagName + (el.id ? "#"+el.id : "") : "none"), "info");
+        if(target){
+          target.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
+          target.dispatchEvent(new MouseEvent("mouseup",  {bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
+          target.dispatchEvent(new MouseEvent("click",    {bubbles:true,cancelable:true,view:window,clientX:clientX,clientY:clientY}));
+        }
 
-      var ev = new MouseEvent("click", {
-        bubbles: true, cancelable: true, view: window,
-        clientX: clientX, clientY: clientY,
-        screenX: clientX, screenY: clientY
-      });
-
-      if (el) el.dispatchEvent(ev);
-
-      setTimeout(function(){ floatNext.style.pointerEvents = ""; }, 50);
+        // Restore after the events are dispatched
+        setTimeout(function(){
+          iframe.style.pointerEvents = "none";
+          catcher.style.pointerEvents = "";
+        }, 100);
+      }, 10);
     }
 
-    floatNext.addEventListener("click", function(e) {
-      advanceQuestion();
-      forwardClickToIframe(e.clientX, e.clientY);
+    // ── Click catcher — handles ALL clicks over the iframe ──────────────────
+    catcher.addEventListener("mousedown", function(e){
+      var isNext = inNextZone(e.clientX, e.clientY);
+      log((isNext?"[NEXT] ":"[FORM] ")+"click at "+Math.round(e.clientX)+","+Math.round(e.clientY), isNext?"ok":"info");
+      if(isNext) advanceQuestion();
+      passThroughToIframe(e.clientX, e.clientY, false);
     });
 
-    // Touch: prevent ghost click, then do both actions
-    floatNext.addEventListener("touchend", function(e) {
-      e.preventDefault();
-      var t = e.changedTouches[0];
-      advanceQuestion();
-      forwardClickToIframe(t.clientX, t.clientY);
-    }, { passive: false });
+    catcher.addEventListener("touchstart", function(e){
+      var t=e.touches[0];
+      var isNext = inNextZone(t.clientX, t.clientY);
+      log((isNext?"[NEXT] ":"[FORM] ")+"touch at "+Math.round(t.clientX)+","+Math.round(t.clientY), isNext?"ok":"info");
+      if(isNext) advanceQuestion();
+      passThroughToIframe(t.clientX, t.clientY, true);
+    }, {passive:true});
 
     // ── Other controls ───────────────────────────────────────────────────────
-    document.getElementById("btn-replay").addEventListener("click", function() {
-      if (muted) { showToast("Unmute first"); return; }
+    document.getElementById("btn-replay").addEventListener("click", function(){
+      if(muted){showToast("Unmute first");return;}
       speak(questions[currentIndex]); showToast("↺ Replaying…");
     });
-
-    document.getElementById("btn-mute").addEventListener("click", function() {
-      muted = !muted;
-      if (muted) {
-        synth.cancel(); this.textContent="🔇 Unmute"; this.classList.add("muted");
-        setStatus("","Muted"); setWave(false); showToast("Audio muted");
-      } else {
-        this.textContent="🔊 Mute"; this.classList.remove("muted");
-        setStatus("","Ready"); showToast("Audio on");
-      }
+    document.getElementById("btn-mute").addEventListener("click", function(){
+      muted=!muted;
+      if(muted){ synth.cancel(); this.textContent="🔇 Unmute"; this.classList.add("muted"); setStatus("","Muted"); setWave(false); showToast("Audio muted"); }
+      else { this.textContent="🔊 Mute"; this.classList.remove("muted"); setStatus("","Ready"); showToast("Audio on"); }
     });
 
-    // Formbricks survey-complete event
-    window.addEventListener("message", function(ev) {
-      if (ev.origin !== "https://app.formbricks.com") return;
-      log("postMessage: " + JSON.stringify(ev.data));
-      if (ev.data==="formbricksSurveyCompleted" || (ev.data && ev.data.type==="formbricksSurveyCompleted")) {
-        log("Survey completed!","ok");
-        currentIndex = questions.length - 1;
-        speakCurrent();
+    window.addEventListener("message", function(ev){
+      if(ev.origin!=="https://app.formbricks.com")return;
+      if(ev.data==="formbricksSurveyCompleted"||(ev.data&&ev.data.type==="formbricksSurveyCompleted")){
+        log("Survey complete!","ok"); currentIndex=questions.length-1; speakCurrent();
       }
     });
 
     // ── Init ─────────────────────────────────────────────────────────────────
-    window.addEventListener("load", function() {
+    window.addEventListener("load", function(){
       updateCounter();
-      log("Ready | "+questions.length+" questions | float-next active","ok");
+      log("Ready — click-catcher active over full iframe","ok");
       setTimeout(function(){ loadVoices(); speakCurrent(); }, 1000);
     });
   </script>
