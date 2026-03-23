@@ -127,17 +127,8 @@
     .ctrl-btn:active { transform: scale(.97); }
     .ctrl-btn.muted { background:#fef2f2; border-color:#fca5a5; color:var(--status-err); }
 
-    #btn-next {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-      font-weight: 600;
-    }
-    #btn-next:hover { background: #1d4ed8; border-color: #1d4ed8; }
-    #btn-next:disabled {
-      background: #94a3b8; border-color: #94a3b8;
-      cursor: not-allowed; transform: none; opacity: 0.7;
-    }
+    /* Hide the top-bar Next button — form's own Next is now the trigger */
+    #btn-next { display: none; }
 
     #survey-wrapper {
       flex: 1;
@@ -146,6 +137,40 @@
     }
 
     iframe { width: 100%; height: 100%; border: none; }
+
+    /*
+     * ─── NEXT-BUTTON INTERCEPTOR ───────────────────────────────────────────────
+     * This transparent div sits exactly over the Formbricks "Next" button area.
+     * Formbricks always renders its Next button in the bottom-right of the card,
+     * which is horizontally centered in the viewport and roughly 380–540 px from
+     * the bottom of the iframe. Adjust --btn-w / --btn-h / positioning if your
+     * survey card is a different size.
+     *
+     * pointer-events: none → the real iframe button stays clickable underneath.
+     * We intercept via a brief mousedown / touchstart before the iframe gets it,
+     * using the capture phase (3rd arg = true on addEventListener).
+     * ───────────────────────────────────────────────────────────────────────────
+     */
+    #next-interceptor {
+      position: absolute;
+
+      /* Formbricks card is centered; Next btn is ~120px wide, ~44px tall,
+         sitting ~40px from card bottom edge, card bottom ~30% from viewport bottom */
+      right: calc(50% - 340px); /* right side of centered ~680px card */
+      bottom: calc(30% - 10px);
+      width: 130px;
+      height: 54px;
+
+      /* Invisible but present */
+      background: transparent;
+      z-index: 10;
+      cursor: pointer;
+
+      /* Visual debug aid — remove or set to 0 when satisfied */
+      outline: 2px dashed rgba(37,99,235,0.0);
+    }
+    /* Un-comment below to visualize the intercept zone while calibrating: */
+    /* #next-interceptor { outline: 2px dashed rgba(37,99,235,0.5); background: rgba(37,99,235,0.08); } */
 
     #debug-panel {
       display: none;
@@ -202,7 +227,7 @@
     <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
     <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
     <button class="ctrl-btn" id="btn-debug">🐛 Debug</button>
-    <button class="ctrl-btn" id="btn-next">Next →</button>
+    <button class="ctrl-btn" id="btn-next">Next →</button><!-- hidden via CSS -->
   </div>
 
   <div id="survey-wrapper">
@@ -211,6 +236,13 @@
       src="https://app.formbricks.com/s/cmmtnwmbjax13qn01tl8lpylv"
       allow="autoplay"
     ></iframe>
+
+    <!--
+      Transparent interceptor overlay — positioned over the form's Next button.
+      Clicks pass through (pointer-events: none on the div itself; we listen
+      in the capture phase on the wrapper instead).
+    -->
+    <div id="next-interceptor" aria-hidden="true"></div>
   </div>
 
   <div id="debug-panel"></div>
@@ -237,6 +269,10 @@
     var selectedVoice = null;
     var synth        = window.speechSynthesis;
 
+    // Throttle: ignore duplicate intercepts within this many ms
+    var INTERCEPT_COOLDOWN_MS = 800;
+    var lastInterceptAt = 0;
+
     // ═══════════════════════════════════════════════
     //  Debug logger
     // ═══════════════════════════════════════════════
@@ -254,6 +290,14 @@
 
     document.getElementById("btn-debug").addEventListener("click", function() {
       debugPanel.classList.toggle("visible");
+      // Also toggle the intercept zone outline for visual calibration
+      var el = document.getElementById("next-interceptor");
+      el.style.outline = debugPanel.classList.contains("visible")
+        ? "2px dashed rgba(37,99,235,0.6)"
+        : "";
+      el.style.background = debugPanel.classList.contains("visible")
+        ? "rgba(37,99,235,0.08)"
+        : "";
     });
 
     // ═══════════════════════════════════════════════
@@ -265,7 +309,6 @@
     var qCounter   = document.getElementById("q-counter");
     var voiceLabel = document.getElementById("voice-label");
     var toast      = document.getElementById("toast");
-    var btnNext    = document.getElementById("btn-next");
 
     function setStatus(state, text) {
       statusDot.className = state || "";
@@ -274,7 +317,6 @@
     function setWave(on) { waveform.classList.toggle("active", on); }
     function updateCounter() {
       qCounter.textContent = "Q " + (currentIndex + 1) + " / " + questions.length;
-      btnNext.disabled = (currentIndex >= questions.length - 1);
     }
 
     var toastTimer;
@@ -286,94 +328,57 @@
     }
 
     // ═══════════════════════════════════════════════
-    //  Voice selection — pick best available female
-    //  en-US voice, preferring enhanced/natural ones
+    //  Voice selection
     // ═══════════════════════════════════════════════
-
-    // Preferred voice names in priority order
     var PREFERRED_VOICES = [
-      "Samantha",           // macOS/iOS — very natural
-      "Karen",              // macOS Australian
-      "Moira",              // macOS Irish
-      "Tessa",              // macOS South African
-      "Victoria",           // macOS
-      "Zira",               // Windows — decent
-      "Microsoft Zira",
-      "Google US English",  // Chrome on Android/desktop
-      "en-US"               // fallback: any en-US
+      "Samantha", "Karen", "Moira", "Tessa", "Victoria",
+      "Zira", "Microsoft Zira", "Google US English", "en-US"
     ];
 
     function pickBestVoice(voices) {
       var enUS = voices.filter(function(v) {
         return v.lang && v.lang.startsWith("en");
       });
-
       log("Available en voices: " + enUS.map(function(v){ return v.name; }).join(", "));
-
-      // Try preferred list first
       for (var i = 0; i < PREFERRED_VOICES.length; i++) {
         var pref = PREFERRED_VOICES[i];
-        var match = enUS.find(function(v) {
-          return v.name.indexOf(pref) !== -1;
-        });
+        var match = enUS.find(function(v) { return v.name.indexOf(pref) !== -1; });
         if (match) {
           log("Selected voice: " + match.name + " (" + match.lang + ")", "ok");
           return match;
         }
       }
-
-      // Fallback: first en-US, then first en, then first available
-      var fallback = enUS.find(function(v){ return v.lang === "en-US"; })
-                  || enUS[0]
-                  || voices[0];
-
+      var fallback = enUS.find(function(v){ return v.lang === "en-US"; }) || enUS[0] || voices[0];
       if (fallback) log("Fallback voice: " + fallback.name, "ok");
       return fallback || null;
     }
 
     function loadVoices() {
       var voices = synth.getVoices();
-      if (voices.length === 0) return; // not ready yet
+      if (voices.length === 0) return;
       selectedVoice = pickBestVoice(voices);
       voiceLabel.textContent = selectedVoice ? "🎙 " + selectedVoice.name : "Default voice";
     }
 
-    // Chrome loads voices async
-    if (synth.onvoiceschanged !== undefined) {
-      synth.onvoiceschanged = loadVoices;
-    }
-    loadVoices(); // also try immediately (Firefox/Safari)
+    if (synth.onvoiceschanged !== undefined) { synth.onvoiceschanged = loadVoices; }
+    loadVoices();
 
     // ═══════════════════════════════════════════════
     //  Web Speech TTS
     // ═══════════════════════════════════════════════
     function speak(text) {
       if (muted || !text) return;
-
-      synth.cancel(); // stop anything currently speaking
-
+      synth.cancel();
       var utt = new SpeechSynthesisUtterance(text);
-
       if (selectedVoice) utt.voice = selectedVoice;
       utt.lang  = "en-US";
-      utt.rate  = 0.92;   // slightly slower = clearer
+      utt.rate  = 0.92;
       utt.pitch = 1.0;
       utt.volume = 1.0;
 
-      utt.onstart = function() {
-        setStatus("playing", "Playing…");
-        setWave(true);
-        log("▶ Speaking: \"" + text.substring(0, 40) + "…\"", "ok");
-      };
-
-      utt.onend = function() {
-        setStatus("", "Ready");
-        setWave(false);
-        log("■ Done");
-      };
-
+      utt.onstart = function() { setStatus("playing", "Playing…"); setWave(true); log("▶ Speaking: \"" + text.substring(0, 40) + "…\"", "ok"); };
+      utt.onend   = function() { setStatus("", "Ready"); setWave(false); log("■ Done"); };
       utt.onerror = function(e) {
-        // "interrupted" fires on synth.cancel() — not a real error
         if (e.error === "interrupted" || e.error === "canceled") return;
         log("Speech error: " + e.error, "err");
         setStatus("error", "Speech error");
@@ -390,15 +395,53 @@
       speak(questions[currentIndex]);
     }
 
-    // ═══════════════════════════════════════════════
-    //  Buttons
-    // ═══════════════════════════════════════════════
-    btnNext.addEventListener("click", function() {
+    function advanceQuestion() {
+      var now = Date.now();
+      if (now - lastInterceptAt < INTERCEPT_COOLDOWN_MS) {
+        log("Intercept skipped (cooldown)", "info");
+        return;
+      }
+      lastInterceptAt = now;
+
       if (currentIndex >= questions.length - 1) return;
       currentIndex++;
       speakCurrent();
-    });
+      log("Intercepted form Next → advanced to Q" + (currentIndex + 1), "ok");
+    }
 
+    // ═══════════════════════════════════════════════
+    //  Intercept the form's Next button
+    //
+    //  Strategy: listen on #survey-wrapper in the CAPTURE phase.
+    //  When a mousedown/touchstart lands inside #next-interceptor's bounding
+    //  rect, we advance our audio. The event is NOT stopped so the iframe's
+    //  own button still receives it and the form advances normally.
+    // ═══════════════════════════════════════════════
+    var wrapper     = document.getElementById("survey-wrapper");
+    var interceptor = document.getElementById("next-interceptor");
+
+    function isInsideInterceptor(clientX, clientY) {
+      var r = interceptor.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right &&
+             clientY >= r.top  && clientY <= r.bottom;
+    }
+
+    wrapper.addEventListener("mousedown", function(e) {
+      if (isInsideInterceptor(e.clientX, e.clientY)) {
+        advanceQuestion();
+      }
+    }, true /* capture */);
+
+    wrapper.addEventListener("touchstart", function(e) {
+      var t = e.touches[0];
+      if (t && isInsideInterceptor(t.clientX, t.clientY)) {
+        advanceQuestion();
+      }
+    }, true /* capture */);
+
+    // ═══════════════════════════════════════════════
+    //  Buttons
+    // ═══════════════════════════════════════════════
     document.getElementById("btn-replay").addEventListener("click", function() {
       if (muted) { showToast("Unmute first"); return; }
       log("Replay Q" + (currentIndex + 1));
@@ -445,10 +488,9 @@
     window.addEventListener("load", function() {
       updateCounter();
       log("Web Speech API ready | Questions: " + questions.length, "ok");
-
-      // Give voices a moment to load, then speak
+      log("Next-button interceptor active", "ok");
       setTimeout(function() {
-        loadVoices(); // final attempt to grab voices
+        loadVoices();
         speakCurrent();
       }, 1000);
     });
