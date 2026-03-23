@@ -79,21 +79,21 @@
   <div id="toast"></div>
 
   <script>
-    // ── Questions — index matches Tally page number (page 1 = index 0, etc.) ─
-    // From your debug log: page 1 = FormLoaded/welcome, page 2 = Q1, page 3 = Q2…
-    var questions = [
-      "Welcome to the JTCHS survey. Please click Next to begin.",       // page 1
-      "Question 1: I feel that my values align with the company mission and culture. Select a number from 1 to 10.",  // page 2
-      "Question 2: I understand how my role contributes to the company's overall strategy. Select a number from 1 to 10.", // page 3
-      "Question 3: I feel supported by my manager in my professional development. Select a number from 1 to 10.",     // page 4
-      "Question 4: I would recommend this organization as a great place to work. Select a number from 1 to 10.",      // page 5
-      "Thank you for completing the survey. Your responses have been recorded."  // submit
-    ];
+    // Page-to-speech map — Tally.FormPageView sends 1-based page numbers.
+    // page 1 fires on launch (welcome), page 2 = Q1, page 3 = Q2, etc.
+    var pageMap = {
+      1: "Welcome to the JTCHS survey. Please click Next to begin.",
+      2: "Question 1: I feel that my values align with the company mission and culture. Select a number from 1 to 10.",
+      3: "Question 2: I understand how my role contributes to the company's overall strategy. Select a number from 1 to 10.",
+      4: "Question 3: I feel supported by my manager in my professional development. Select a number from 1 to 10."
+    };
+    var submitText = "Thank you for completing the survey. Your responses have been recorded.";
+    var totalPages = Object.keys(pageMap).length;
 
-    var currentIndex  = 0;
-    var muted         = false;
+    var currentPage = 1;
+    var muted       = false;
+    var synth       = window.speechSynthesis;
     var selectedVoice = null;
-    var synth         = window.speechSynthesis;
 
     var debugPanel = document.getElementById("debug-panel");
     var statusDot  = document.getElementById("status-dot");
@@ -116,7 +116,7 @@
 
     function setStatus(s,t){ statusDot.className=s||""; statusText.textContent=t||"Ready"; }
     function setWave(on){ waveform.classList.toggle("active",on); }
-    function updateCounter(){ qCounter.textContent="Q "+(currentIndex+1)+" / "+questions.length; }
+    function updateCounter(p){ qCounter.textContent="Page "+p+" / "+totalPages; }
     var toastTimer;
     function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toast.classList.remove("show"); },2800); }
 
@@ -144,55 +144,44 @@
       utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
       utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); };
       utt.onend=function(){ setStatus("","Ready"); setWave(false); };
-      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); log("TTS error: "+e.error,"err"); };
+      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); };
       setStatus("loading","Speaking…"); synth.speak(utt);
     }
-    function speakCurrent(){ updateCounter(); speak(questions[currentIndex]); }
 
     // ── Tally postMessage handler ─────────────────────────────────────────────
-    // Tally sends messages as JSON *strings*, not objects.
-    // Real event names: "Tally.FormLoaded", "Tally.FormPageView", "Tally.FormSubmitted"
-    // Payload for page view: { formId, page }  — page is 1-based
+    // Events arrive as JSON strings. Real names: Tally.FormPageView, Tally.FormSubmitted
+    // FormPageView fires on launch (page 1) AND on every Next click — drives everything.
+    // FormLoaded is ignored to avoid double-speaking on launch.
     window.addEventListener("message", function(ev) {
       if (!ev.data || typeof ev.data !== "string") return;
-
       var msg;
       try { msg = JSON.parse(ev.data); } catch(e) { return; }
 
       var event   = msg.event;
       var payload = msg.payload || {};
+      if (!event || !event.startsWith("Tally.")) return;
 
-      if (!event || typeof event !== "string" || !event.startsWith("Tally.")) return;
+      log(event + " page=" + (payload.page||"-"), "ok");
 
-      log("Tally: " + event + " page=" + (payload.page||"-"), "ok");
+      if (event === "Tally.FormPageView") {
+        currentPage = payload.page || 1;
+        updateCounter(currentPage);
+        var text = pageMap[currentPage];
+        if (text) speak(text);
+      }
 
-      switch(event) {
-
-        case "Tally.FormLoaded":
-          // Page 1 is already shown — speak welcome
-          currentIndex = 0;
-          speakCurrent();
-          break;
-
-        case "Tally.FormPageView":
-          // payload.page is 1-based; map to 0-based questions array
-          // page 1 = welcome (0), page 2 = Q1 (1), page 3 = Q2 (2), etc.
-          var idx = (payload.page || 1) - 1;
-          currentIndex = Math.min(Math.max(idx, 0), questions.length - 1);
-          speakCurrent();
-          break;
-
-        case "Tally.FormSubmitted":
-          currentIndex = questions.length - 1;
-          speakCurrent();
-          showToast("✓ Survey submitted");
-          break;
+      if (event === "Tally.FormSubmitted") {
+        updateCounter(totalPages);
+        speak(submitText);
+        showToast("✓ Survey submitted");
       }
     });
 
+    // ── Controls ─────────────────────────────────────────────────────────────
     document.getElementById("btn-replay").addEventListener("click", function(){
       if(muted){showToast("Unmute first");return;}
-      speak(questions[currentIndex]); showToast("↺ Replaying…");
+      var text = pageMap[currentPage] || submitText;
+      speak(text); showToast("↺ Replaying…");
     });
     document.getElementById("btn-mute").addEventListener("click", function(){
       muted=!muted;
@@ -201,7 +190,7 @@
     });
 
     window.addEventListener("load", function(){
-      updateCounter();
+      updateCounter(1);
       setTimeout(loadVoices, 500);
     });
   </script>
