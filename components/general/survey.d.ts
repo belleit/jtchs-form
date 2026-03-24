@@ -1,4 +1,0 @@
-import { JSX } from 'preact';
-import { SurveyContainerProps } from '@formbricks/types/formbricks-surveys';
-export declare function Survey({ appUrl, environmentId, isPreviewMode, userId, contactId, mode, survey, styling, isBrandingEnabled, onDisplay, onResponse, onClose, onFinished, onRetry, onDisplayCreated, onResponseCreated, onOpenExternalURL, isRedirectDisabled, prefillResponseData, skipPrefilled, languageCode, getSetIsError, getSetIsResponseSendingFinished, getSetBlockId, getSetResponseData, responseCount, startAtQuestionId, hiddenFieldsRecord, shouldResetQuestionId, fullSizeCards, autoFocus, action, singleUseId, singleUseResponseId, isWebEnvironment, getRecaptchaToken, isSpamProtectionEnabled, dir, setDir, placement, }: SurveyContainerProps): JSX.Element;
-//# sourceMappingURL=survey.d.ts.map

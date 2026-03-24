@@ -1,1 +1,0 @@
-{"version":3,"file":"survey-close-button.d.ts","sourceRoot":"","sources":["../../../src/components/general/survey-close-button.tsx"],"names":[],"mappings":"AAMA,UAAU,sBAAsB;IAC9B,OAAO,CAAC,EAAE,MAAM,IAAI,CAAC;IACrB,UAAU,CAAC,EAAE,MAAM,CAAC;IACpB,YAAY,CAAC,EAAE,MAAM,GAAG,MAAM,CAAC;CAChC;AAED,wBAAgB,iBAAiB,CAAC,EAAE,OAAO,EAAE,UAAU,EAAE,YAAY,EAAE,EAAE,QAAQ,CAAC,sBAAsB,CAAC,gCAyBxG"}

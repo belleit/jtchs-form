@@ -1,1 +1,0 @@
-{"version":3,"file":"error-component.d.ts","sourceRoot":"","sources":["../../../src/components/general/error-component.tsx"],"names":[],"mappings":"AACA,OAAO,EAAE,uBAAuB,EAAE,MAAM,8BAA8B,CAAC;AAEvE,UAAU,mBAAmB;IAC3B,QAAQ,CAAC,SAAS,EAAE,uBAAuB,CAAC,cAAc,GAAG,uBAAuB,CAAC,kBAAkB,CAAC;CACzG;AAED,wBAAgB,cAAc,CAAC,EAAE,SAAS,EAAE,EAAE,mBAAmB,gCAwBhE"}

@@ -83,7 +83,7 @@
     //  CONFIG — key is injected by GitHub Actions
     //  DO NOT hardcode the real key here
     // ═══════════════════════════════════════════════
-    var OPENAI_API_KEY = "%%OPENAI_API_KEY%%";  // replaced at build time
+    var OPENAI_API_KEY = "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";  // replaced at build time
     var OPENAI_VOICE   = "nova";
     var OPENAI_MODEL   = "tts-1";
 
@@ -142,7 +142,7 @@
       }
 
       // Guard: catch un-replaced placeholder
-      if (OPENAI_API_KEY === "%%OPENAI_API_KEY%%") {
+      if (OPENAI_API_KEY === "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") {
         log("ERROR: API key placeholder was not replaced — check GitHub Actions workflow", "err");
         setStatus("error", "Key not injected");
         showToast("⚠️ API key missing — see 🐛 Debug");
