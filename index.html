@@ -80,12 +80,12 @@
 
   <script>
     // ═══════════════════════════════════════════════
-    //  CONFIG — key is injected by GitHub Actions
-    //  DO NOT hardcode the real key here
+    //  CONFIG — only the Worker URL lives here
+    //  The API key is stored securely in Cloudflare
     // ═══════════════════════════════════════════════
-    var OPENAI_API_KEY = "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";  // replaced at build time
-    var OPENAI_VOICE   = "nova";
-    var OPENAI_MODEL   = "tts-1";
+    var WORKER_URL = "https://jtchs-tts.YOUR-SUBDOMAIN.workers.dev/tts";
+    // ↑ Replace with your actual Worker URL after deploying
+    // Find it in Cloudflare → Workers & Pages → your worker → copy the URL
 
     var pageMap = {
       1: "Welcome to the JTCHS survey. Please click Next to begin.",
@@ -131,6 +131,9 @@
       toastTimer = setTimeout(function() { toast.classList.remove("show"); }, 2800);
     }
 
+    // ═══════════════════════════════════════════════
+    //  TTS — calls Cloudflare Worker (no key in browser)
+    // ═══════════════════════════════════════════════
     function fetchAndPlay(text) {
       if (muted || !text) return;
       stopAudio();
@@ -141,29 +144,13 @@
         return;
       }
 
-      // Guard: catch un-replaced placeholder
-      if (OPENAI_API_KEY === "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") {
-        log("ERROR: API key placeholder was not replaced — check GitHub Actions workflow", "err");
-        setStatus("error", "Key not injected");
-        showToast("⚠️ API key missing — see 🐛 Debug");
-        return;
-      }
-
       setStatus("loading", "Generating…");
-      log("POST → OpenAI TTS | voice=" + OPENAI_VOICE);
+      log("POST → Worker | text: \"" + text.substring(0, 50) + "\"");
 
-      fetch("https://api.openai.com/v1/audio/speech", {
+      fetch(WORKER_URL, {
         method: "POST",
-        headers: {
-          "Authorization": "Bearer " + OPENAI_API_KEY,
-          "Content-Type":  "application/json"
-        },
-        body: JSON.stringify({
-          model: OPENAI_MODEL,
-          voice: OPENAI_VOICE,
-          input: text,
-          speed: 0.95
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text })
       })
       .then(function(res) {
         log("HTTP " + res.status, res.ok ? "ok" : "err");
@@ -192,7 +179,7 @@
       var audio = new Audio(url);
       currentAudio = audio;
       audio.onplay  = function() { setStatus("playing", "Playing…"); setWave(true); log("▶ Playing", "ok"); };
-      audio.onended = function() { setStatus("", "Ready"); setWave(false); URL.revokeObjectURL(url); };
+      audio.onended = function() { setStatus("", "Ready"); setWave(false); URL.revokeObjectURL(url); log("■ Done"); };
       audio.onerror = function() { log("Playback error", "err"); setStatus("error", "Playback error"); setWave(false); };
       audio.play().catch(function(err) {
         log("Autoplay blocked: " + err.message, "err");
@@ -211,6 +198,9 @@
       setWave(false);
     }
 
+    // ═══════════════════════════════════════════════
+    //  Tally postMessage handler
+    // ═══════════════════════════════════════════════
     window.addEventListener("message", function(ev) {
       if (!ev.data || typeof ev.data !== "string") return;
       var msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
@@ -230,6 +220,9 @@
       }
     });
 
+    // ═══════════════════════════════════════════════
+    //  Controls
+    // ═══════════════════════════════════════════════
     document.getElementById("btn-replay").addEventListener("click", function() {
       if (muted) { showToast("Unmute first"); return; }
       fetchAndPlay(pageMap[currentPage] || submitText);
@@ -250,7 +243,7 @@
 
     window.addEventListener("load", function() {
       updateCounter(1);
-      log("JTCHS Survey loaded | voice=" + OPENAI_VOICE + " | model=" + OPENAI_MODEL, "ok");
+      log("JTCHS Survey loaded | proxy=Cloudflare Worker | voice=nova", "ok");
     });
   </script>
 </body>
