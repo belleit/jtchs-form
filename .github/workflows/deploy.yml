@@ -1,40 +1,24 @@
-name: Build & Deploy TTS Bundle
+name: Build & Deploy
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install deps
-        run: pnpm install
-
-      - name: Build surveys package and all dependencies
-        run: pnpm --filter @formbricks/surveys... build
-        # The "..." tells Turbo to build @formbricks/surveys
-        # AND everything it depends on, in the correct order
-
-      - name: Prepare dist
+      - name: Inject API key into HTML
         run: |
-          cp public/index.html packages/surveys/dist/index.html
-          cp packages/surveys/dist/index.umd.cjs packages/surveys/dist/formbricks.js
-          
-      - name: Check build output
-        run: ls -la packages/surveys/dist/
+          sed -i "s|%%OPENAI_API_KEY%%|${{ secrets.OPENAI_API_KEY }}|g" index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./packages/surveys/dist
+          publish_dir: .
+          publish_branch: gh-pages
