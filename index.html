@@ -32,7 +32,7 @@
     #waveform span:nth-child(5){height:8px;animation-delay:.05s}
     @keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
     .spacer { flex:1; }
-    #voice-label { font-size:11px; color:var(--text-muted); background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:5px 10px; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #voice-label { font-size:11px; color:var(--text-muted); background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:5px 10px; }
     #q-counter { font-size:12px; font-weight:600; color:var(--text-muted); background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:5px 12px; }
     .ctrl-btn { display:flex; align-items:center; gap:6px; background:var(--btn-bg); border:1px solid var(--btn-border); border-radius:8px; padding:6px 14px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; color:var(--text-primary); cursor:pointer; transition:background .15s,border-color .15s,transform .1s; user-select:none; }
     .ctrl-btn:hover { background:var(--btn-hover); border-color:#94a3b8; }
@@ -57,8 +57,8 @@
     <div id="status-pill"><span id="status-dot"></span><span id="status-text">Ready</span></div>
     <div id="waveform"><span></span><span></span><span></span><span></span><span></span></div>
     <div class="spacer"></div>
-    <div id="voice-label">Loading voices…</div>
-    <div id="q-counter">Q 1 / 6</div>
+    <div id="voice-label">🎙 nova</div>
+    <div id="q-counter">Page 1 / 4</div>
     <button class="ctrl-btn" id="btn-replay">↺ Replay</button>
     <button class="ctrl-btn" id="btn-mute">🔊 Mute</button>
     <button class="ctrl-btn" id="btn-debug">🐛 Debug</button>
@@ -79,8 +79,14 @@
   <div id="toast"></div>
 
   <script>
-    // Page-to-speech map — Tally.FormPageView sends 1-based page numbers.
-    // page 1 fires on launch (welcome), page 2 = Q1, page 3 = Q2, etc.
+    // ═══════════════════════════════════════════════
+    //  CONFIG — key is injected by GitHub Actions
+    //  DO NOT hardcode the real key here
+    // ═══════════════════════════════════════════════
+    var OPENAI_API_KEY = "%%OPENAI_API_KEY%%";  // replaced at build time
+    var OPENAI_VOICE   = "nova";
+    var OPENAI_MODEL   = "tts-1";
+
     var pageMap = {
       1: "Welcome to the JTCHS survey. Please click Next to begin.",
       2: "Question 1: I feel that my values align with the company mission and culture. Select a number from 1 to 10.",
@@ -90,108 +96,161 @@
     var submitText = "Thank you for completing the survey. Your responses have been recorded.";
     var totalPages = Object.keys(pageMap).length;
 
-    var currentPage = 1;
-    var muted       = false;
-    var synth       = window.speechSynthesis;
-    var selectedVoice = null;
+    var currentPage  = 1;
+    var muted        = false;
+    var currentAudio = null;
+    var audioCache   = {};
 
     var debugPanel = document.getElementById("debug-panel");
     var statusDot  = document.getElementById("status-dot");
     var statusText = document.getElementById("status-text");
     var waveform   = document.getElementById("waveform");
     var qCounter   = document.getElementById("q-counter");
-    var voiceLabel = document.getElementById("voice-label");
     var toast      = document.getElementById("toast");
 
     function log(msg, type) {
       var line = document.createElement("div");
-      line.className = "log-line " + (type||"info");
-      line.textContent = "["+new Date().toLocaleTimeString("en-US",{hour12:false})+"] "+msg;
+      line.className = "log-line " + (type || "info");
+      line.textContent = "[" + new Date().toLocaleTimeString("en-US", {hour12:false}) + "] " + msg;
       debugPanel.appendChild(line);
       debugPanel.scrollTop = debugPanel.scrollHeight;
+      if (type === "err") debugPanel.classList.add("visible");
     }
     document.getElementById("btn-debug").addEventListener("click", function() {
       debugPanel.classList.toggle("visible");
     });
 
-    function setStatus(s,t){ statusDot.className=s||""; statusText.textContent=t||"Ready"; }
-    function setWave(on){ waveform.classList.toggle("active",on); }
-    function updateCounter(p){ qCounter.textContent="Page "+p+" / "+totalPages; }
+    function setStatus(s, t) { statusDot.className = s || ""; statusText.textContent = t || "Ready"; }
+    function setWave(on) { waveform.classList.toggle("active", on); }
+    function updateCounter(p) { qCounter.textContent = "Page " + p + " / " + totalPages; }
     var toastTimer;
-    function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toast.classList.remove("show"); },2800); }
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() { toast.classList.remove("show"); }, 2800);
+    }
 
-    var PREF = ["Samantha","Karen","Moira","Tessa","Victoria","Zira","Microsoft Zira","Google US English"];
-    function pickBestVoice(voices) {
-      var en = voices.filter(function(v){ return v.lang&&v.lang.startsWith("en"); });
-      for (var i=0;i<PREF.length;i++) {
-        var m = en.find(function(v){ return v.name.indexOf(PREF[i])!==-1; });
-        if (m) return m;
+    function fetchAndPlay(text) {
+      if (muted || !text) return;
+      stopAudio();
+
+      if (audioCache[text]) {
+        log("Cache hit — playing instantly", "ok");
+        playBlob(audioCache[text]);
+        return;
       }
-      return en.find(function(v){ return v.lang==="en-US"; })||en[0]||voices[0]||null;
-    }
-    function loadVoices(){
-      var v=synth.getVoices(); if(!v.length)return;
-      selectedVoice=pickBestVoice(v);
-      voiceLabel.textContent=selectedVoice?"🎙 "+selectedVoice.name:"Default voice";
-    }
-    if(synth.onvoiceschanged!==undefined)synth.onvoiceschanged=loadVoices;
-    loadVoices();
 
-    function speak(text){
-      if(muted||!text)return; synth.cancel();
-      var utt=new SpeechSynthesisUtterance(text);
-      if(selectedVoice)utt.voice=selectedVoice;
-      utt.lang="en-US"; utt.rate=0.92; utt.pitch=1.0; utt.volume=1.0;
-      utt.onstart=function(){ setStatus("playing","Playing…"); setWave(true); };
-      utt.onend=function(){ setStatus("","Ready"); setWave(false); };
-      utt.onerror=function(e){ if(e.error==="interrupted"||e.error==="canceled")return; setStatus("error","Error"); setWave(false); };
-      setStatus("loading","Speaking…"); synth.speak(utt);
+      // Guard: catch un-replaced placeholder
+      if (OPENAI_API_KEY === "%%OPENAI_API_KEY%%") {
+        log("ERROR: API key placeholder was not replaced — check GitHub Actions workflow", "err");
+        setStatus("error", "Key not injected");
+        showToast("⚠️ API key missing — see 🐛 Debug");
+        return;
+      }
+
+      setStatus("loading", "Generating…");
+      log("POST → OpenAI TTS | voice=" + OPENAI_VOICE);
+
+      fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + OPENAI_API_KEY,
+          "Content-Type":  "application/json"
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          voice: OPENAI_VOICE,
+          input: text,
+          speed: 0.95
+        })
+      })
+      .then(function(res) {
+        log("HTTP " + res.status, res.ok ? "ok" : "err");
+        if (!res.ok) {
+          return res.text().then(function(body) {
+            throw new Error("HTTP " + res.status + ": " + body.substring(0, 200));
+          });
+        }
+        return res.blob();
+      })
+      .then(function(blob) {
+        log("Audio: " + (blob.size / 1024).toFixed(1) + " KB", "ok");
+        audioCache[text] = blob;
+        playBlob(blob);
+      })
+      .catch(function(err) {
+        log("FAILED: " + err.message, "err");
+        setStatus("error", "Error — see Debug");
+        setWave(false);
+        showToast("⚠️ Audio error — click 🐛 Debug");
+      });
     }
 
-    // ── Tally postMessage handler ─────────────────────────────────────────────
-    // Events arrive as JSON strings. Real names: Tally.FormPageView, Tally.FormSubmitted
-    // FormPageView fires on launch (page 1) AND on every Next click — drives everything.
-    // FormLoaded is ignored to avoid double-speaking on launch.
+    function playBlob(blob) {
+      var url = URL.createObjectURL(blob);
+      var audio = new Audio(url);
+      currentAudio = audio;
+      audio.onplay  = function() { setStatus("playing", "Playing…"); setWave(true); log("▶ Playing", "ok"); };
+      audio.onended = function() { setStatus("", "Ready"); setWave(false); URL.revokeObjectURL(url); };
+      audio.onerror = function() { log("Playback error", "err"); setStatus("error", "Playback error"); setWave(false); };
+      audio.play().catch(function(err) {
+        log("Autoplay blocked: " + err.message, "err");
+        setStatus("", "Tap to play");
+        showToast("👆 Click anywhere, then hit Replay");
+        var retry = function() {
+          document.removeEventListener("click", retry);
+          if (currentAudio) currentAudio.play().catch(function(){});
+        };
+        document.addEventListener("click", retry);
+      });
+    }
+
+    function stopAudio() {
+      if (currentAudio) { currentAudio.pause(); currentAudio.onended = null; currentAudio = null; }
+      setWave(false);
+    }
+
     window.addEventListener("message", function(ev) {
       if (!ev.data || typeof ev.data !== "string") return;
-      var msg;
-      try { msg = JSON.parse(ev.data); } catch(e) { return; }
-
-      var event   = msg.event;
-      var payload = msg.payload || {};
+      var msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+      var event = msg.event; var payload = msg.payload || {};
       if (!event || !event.startsWith("Tally.")) return;
-
-      log(event + " page=" + (payload.page||"-"), "ok");
-
+      log(event + " | page=" + (payload.page || "-"), "ok");
       if (event === "Tally.FormPageView") {
         currentPage = payload.page || 1;
         updateCounter(currentPage);
         var text = pageMap[currentPage];
-        if (text) speak(text);
+        if (text) fetchAndPlay(text);
       }
-
       if (event === "Tally.FormSubmitted") {
         updateCounter(totalPages);
-        speak(submitText);
+        fetchAndPlay(submitText);
         showToast("✓ Survey submitted");
       }
     });
 
-    // ── Controls ─────────────────────────────────────────────────────────────
-    document.getElementById("btn-replay").addEventListener("click", function(){
-      if(muted){showToast("Unmute first");return;}
-      var text = pageMap[currentPage] || submitText;
-      speak(text); showToast("↺ Replaying…");
-    });
-    document.getElementById("btn-mute").addEventListener("click", function(){
-      muted=!muted;
-      if(muted){ synth.cancel(); this.textContent="🔇 Unmute"; this.classList.add("muted"); setStatus("","Muted"); setWave(false); showToast("Audio muted"); }
-      else { this.textContent="🔊 Mute"; this.classList.remove("muted"); setStatus("","Ready"); showToast("Audio on"); }
+    document.getElementById("btn-replay").addEventListener("click", function() {
+      if (muted) { showToast("Unmute first"); return; }
+      fetchAndPlay(pageMap[currentPage] || submitText);
+      showToast("↺ Replaying…");
     });
 
-    window.addEventListener("load", function(){
+    document.getElementById("btn-mute").addEventListener("click", function() {
+      muted = !muted;
+      if (muted) {
+        stopAudio();
+        this.textContent = "🔇 Unmute"; this.classList.add("muted");
+        setStatus("", "Muted"); setWave(false); showToast("Audio muted");
+      } else {
+        this.textContent = "🔊 Mute"; this.classList.remove("muted");
+        setStatus("", "Ready"); showToast("Audio on");
+      }
+    });
+
+    window.addEventListener("load", function() {
       updateCounter(1);
-      setTimeout(loadVoices, 500);
+      log("JTCHS Survey loaded | voice=" + OPENAI_VOICE + " | model=" + OPENAI_MODEL, "ok");
     });
   </script>
 </body>
